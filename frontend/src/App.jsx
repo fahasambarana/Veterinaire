@@ -1,28 +1,31 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
-import "./App.css";
-import Layout from "./components/dashboard/Layout";
-import Inscription from "./components/Inscription";
-import Login from "./components/Login";
-import ProtectedRoute from "./components/ProtectedRoute";
-import Home from "./pages/Home";
-import Parametre from "./pages/Parametre";
-import Profile from "./pages/Profile";
+// src/App.jsx
+import { Navigate, Route, Routes } from 'react-router-dom';
+import Dashboard from './components/Dashboard';
+import Inscription from './components/Inscription';
+import Login from './components/Login';
+import { useAuth } from './context/AuthContext'; // 👈 use AuthContext instead of local hook
+import Profile from './pages/Profile';
 
 function App() {
+  const { user, loading } = useAuth(); // 👈 comes from context now
+
+  if (loading) return <div className="text-center mt-10">Chargement...</div>;
+
   return (
-    <div>
-      <BrowserRouter>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Login />}></Route>
-            <Route path="/inscription" element={<Inscription />}></Route>
-            <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>}></Route>
-            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>}></Route>
-            <Route path="/settings" element={<ProtectedRoute><Parametre /></ProtectedRoute>}></Route>
-          </Routes>
-        </Layout>
-      </BrowserRouter>
-    </div>
+    
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/inscription" element={!user ? <Inscription /> : <Navigate to="/login" />} />
+        <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
+
+        {/* Protected Route */}
+        <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
+        <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
+
+        {/* Default Redirect */}
+        <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
+      </Routes>
+    
   );
 }
 

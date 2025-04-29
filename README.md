@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # ProjetSoutenance
 1. Gestion des animaux
 Ajout d’un nouvel animal avec ses informations (nom, espèce, race, date de naissance, sexe, poids, etc.)
@@ -93,3 +94,7 @@ Backend sur Render/Heroku
 Frontend sur Vercel/Netlify
 
 Base de données MongoDB Atlas
+=======
+# Veterinaire
+Projet soutenance en L3
+>>>>>>> aa804251be1fb60766a0ec23c785b99919da49a2

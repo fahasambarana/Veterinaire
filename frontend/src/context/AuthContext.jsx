@@ -1,15 +1,15 @@
 import axios from "axios";
 import { createContext, useContext, useEffect, useState } from "react";
 
-// Create the context
+// Créer le contexte
 const AuthContext = createContext();
 
-// Provider component
+// Composant provider
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // pour indiquer que les données sont en cours de chargement
 
-  // Fetch user on mount
+  // Charger l'utilisateur au montage si un token est présent
   useEffect(() => {
     const fetchUser = async () => {
       const token = localStorage.getItem("token");
@@ -19,13 +19,13 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        const res = await axios.get("http://localhost:5000/api/user/profile", {
+        const res = await axios.get("http://localhost:5000/api/users/profile", {
           headers: { Authorization: `Bearer ${token}` },
         });
-
-        setUser(res.data.user); // adjust based on your backend
+        setUser(res.data.user); // Supposant que res.data.user contient les infos
       } catch (err) {
-        console.error("Auth error:", err);
+        console.error("Erreur lors du chargement du profil:", err);
+        localStorage.removeItem("token"); // Nettoyage en cas d'erreur (token expiré)
         setUser(null);
       } finally {
         setLoading(false);
@@ -35,35 +35,59 @@ export const AuthProvider = ({ children }) => {
     fetchUser();
   }, []);
 
-  // Login function
+  // Fonction de connexion
   const login = async (email, password) => {
-    const res = await axios.post("http://localhost:5000/api/user/login", {
-      email,
-      password,
-    });
+    try {
+      const res = await axios.post("http://localhost:5000/api/users/login", {
+        email,
+        password,
+      });
 
-    localStorage.setItem("token", res.data.token);
-    setUser(res.data.user); // assuming backend returns user data
+      localStorage.setItem("token", res.data.token);
+      setUser(res.data.user);
+    } catch (err) {
+      throw err; // à gérer dans le composant appelant
+    }
   };
+
+  // Fonction d'inscription
   const inscription = async (formData) => {
-    const res = await axios.post("http://localhost:5000/api/user/register", formData);
-
-    localStorage.setItem("token", res.data.token);
-    return res.data // assuming backend returns user data
+    try {
+      const res = await axios.post("http://localhost:5000/api/users/register", formData);
+      localStorage.setItem("token", res.data.token);
+      setUser(res.data.user); // <- important d'ajouter ça si le backend le retourne
+      return res.data;
+    } catch (err) {
+      throw err;
+    }
   };
 
-  // Logout function
+  // Déconnexion
   const logout = () => {
     localStorage.removeItem("token");
     setUser(null);
   };
 
+  // Mettre à jour localement les données de l'utilisateur (après modification du profil par exemple)
+  const updateUser = (updatedUser) => {
+    setUser(updatedUser);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, inscription, login, logout }}>
-      {children}
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        inscription,
+        login,
+        logout,
+        updateUser,
+      }}
+    >
+      {!loading && children}
     </AuthContext.Provider>
   );
 };
 
-// Hook to use the auth context
+// Hook personnalisé pour consommer le contexte
 export const useAuth = () => useContext(AuthContext);

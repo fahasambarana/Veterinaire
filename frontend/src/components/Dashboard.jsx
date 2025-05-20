@@ -17,7 +17,7 @@ const Dashboard = () => {
 
   // Check the role and render the appropriate dashboard
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-100 p-6">
       {user?.role === "admin" && <AdminDashboard />}
       {user?.role === "vet" && <VetDashboard />}
       {user?.role === "pet-owner" && <PetOwnerDashboard />}

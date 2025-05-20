@@ -1,19 +1,20 @@
-import { CalendarCheck, Home, LogOut, Menu, MessageSquare, Settings, User, X } from "lucide-react";
+import { CalendarCheck, Home, LogOut, Menu, MessageSquare, PawPrint, Settings, User, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import Logo from "../assets/Logo3.png";
 import { useAuth } from "../context/AuthContext"; // adjust if needed
 import LogoutModal from "./LogoutModal"; // Import the modal component
 
 const menuItems = [
   { label: "Accueil", icon: Home, path: "/dashboard" },
-  { label: "Mes animaux", icon: Home, path: "/pets" },  // Adjust path to correct one if needed
+  { label: "Mes animaux", icon: PawPrint, path: "/animaux" },  // Adjust path to correct one if needed
   { label: "Rendez-vous", icon: CalendarCheck, path: "/appointments" },
   { label: "Messages", icon: MessageSquare, path: "/messages" },
   { label: "Profil", icon: User, path: "/profile" },
   { label: "Paramètres", icon: Settings, path: "/settings" },
 ];
 
-export default function Navbar({ brand = "PetCare" }) {
+export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false); // Modal state
   const location = useLocation();
@@ -33,7 +34,7 @@ export default function Navbar({ brand = "PetCare" }) {
           <div className="flex justify-start items-center h-16">
             {/* Brand */}
             <div className="flex-shrink-0 flex items-center">
-              <span className="text-xl font-bold">{brand}</span>
+              <span className="text-xl font-bold"><img src={Logo} className="w-[50px]" /></span>
             </div>
 
             {/* Desktop menu */}

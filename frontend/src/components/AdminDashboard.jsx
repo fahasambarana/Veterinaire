@@ -5,11 +5,34 @@ import { AlertCircle, CalendarDays, PawPrint, Users } from "lucide-react";
 import React from "react";
 import DashboardCard from "../components/DashboardCard";
 import LayoutSidebar from "./LayoutSidebar";
+import ClientList from "./ClientList";
+import { useEffect, useState } from "react";
+import axios from "axios";
+
 
 const AdminDashboard = () => {
+  const [clientCount, setClientCount] = useState(0);
+
+  useEffect(() => {
+    const fetchClientCount = async () => {
+      const token = localStorage.getItem("token");
+      try {
+        const res = await axios.get("http://localhost:5000/api/users/countClients", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        setClientCount(res.data.totalClients);
+      } catch (err) {
+        console.error("Erreur chargement nombre de clients :", err);
+      }
+    };
+
+    fetchClientCount();
+  }, []);
   return (
     <LayoutSidebar>
-      <div className="ml-[200px]  w-5/6">
+      <div className="">
 
         {/* Titre principal */}
         <h1 className="text-4xl font-extrabold text-teal-700 mb-10 text-center">
@@ -26,7 +49,7 @@ const AdminDashboard = () => {
           />
           <DashboardCard
             title="Propriétaires"
-            value="120"
+            value={clientCount}
             icon={<Users className="text-white w-8 h-8" />}
             bgColor="bg-teal-400"
           />
@@ -76,25 +99,7 @@ const AdminDashboard = () => {
           {/* Section Derniers propriétaires */}
           <div className="bg-white rounded-2xl shadow-md p-8">
             <h2 className="text-2xl font-bold text-teal-700 mb-6 text-center">Nouveaux propriétaires</h2>
-            <ul className="space-y-4 text-gray-700">
-              <li className="flex items-center justify-between border-b pb-2">
-                <span>Sarah Dupont</span>
-                <span className="text-sm text-gray-400">27/04/2025</span>
-              </li>
-              <li className="flex items-center justify-between border-b pb-2">
-                <span>Alex Martin</span>
-                <span className="text-sm text-gray-400">26/04/2025</span>
-              </li>
-              <li className="flex items-center justify-between border-b pb-2">
-                <span>Laura Petit</span>
-                <span className="text-sm text-gray-400">25/04/2025</span>
-              </li>
-            </ul>
-            <div className="flex justify-center mt-6">
-              <button className="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded-lg">
-                Voir tout
-              </button>
-            </div>
+            <ClientList></ClientList>
           </div>
 
         </div>

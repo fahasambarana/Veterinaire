@@ -1,20 +1,23 @@
 import { CalendarCheck, Home, LogOut, Menu, MessageSquare, Settings, User, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import Logo from "../assets/Logo3.png";
 import LogoutModal from "../components/LogoutModal";
 import { useAuth } from "../context/AuthContext";
+
 
 // Sidebar menu config
 const menuItems = [
   
   { label: "Accueil", icon: Home, path: "/dashboard" },
+  { label: "Liste des animaux", icon: Settings, path: "/allPets" },
   { label: "Rendez-vous", icon: CalendarCheck, path: "/appointments" },
   { label: "Messages", icon: MessageSquare, path: "/messages" },
   { label: "Profil", icon: User, path: "/profile" },
   { label: "Paramètres", icon: Settings, path: "/settings" },
 ];
 
-export default function Sidebar({ brand = "PetCare" }) {
+export default function Sidebar() {
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false); // Modal state
   const [isOpen, setIsOpen] = useState(false); // Sidebar state
   const location = useLocation();
@@ -47,7 +50,7 @@ export default function Sidebar({ brand = "PetCare" }) {
         {/* Top: Brand + nav */}
         <div>
           <h2 className="text-2xl font-bold mb-6 text-center tracking-wide">
-            {brand}
+            <img src={Logo} className="w-[80px] text-center m-auto" alt="" />
           </h2>
           <nav>
             <ul className="space-y-2">

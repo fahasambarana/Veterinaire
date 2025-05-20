@@ -9,7 +9,7 @@ import LayoutSidebar from "./LayoutSidebar";
 const VetDashboard = () => {
   return (
     <LayoutSidebar>
-      <div className="ml-[200px] w-5/6">
+      <div className="">
 
         {/* Titre principal */}
         <h1 className="text-4xl font-extrabold text-teal-700 mb-10 text-center">

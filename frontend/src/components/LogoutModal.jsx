@@ -4,7 +4,7 @@ const LogoutModal = ({ isOpen, onCancel, onConfirm }) => {
   if (!isOpen) return null; // Don't render if the modal is not open
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-300">
       <div className="bg-white p-6 rounded-lg shadow-xl w-80">
         <h3 className="text-xl font-bold text-center mb-4">Confirmer la déconnexion</h3>
         <p className="text-center mb-6">Êtes-vous sûr de vouloir vous déconnecter ?</p>

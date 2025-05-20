@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import Logo from "../assets/Logo3.png"
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -27,7 +28,7 @@ const Login = () => {
       
       {/* Left side: Welcome Message */}
       <div className="flex flex-col justify-center items-center text-center p-8 md:w-1/2">
-        <h1 className="text-5xl font-extrabold text-blue-600 mb-6">PetCare</h1>
+        <img src={Logo} width="100px" alt="" /> 
         <p className="text-gray-700 text-lg max-w-md">
           Retrouvez les meilleurs soins vétérinaires pour vos animaux préférés.  
           Planifiez vos rendez-vous, trouvez des conseils santé,  

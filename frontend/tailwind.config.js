@@ -5,14 +5,19 @@ export default {
     "./src/**/*.{js,jsx,ts,tsx}",
   ],
   theme: {
-    screens: {
-      ssm:'375px',
-      sm:'640px',
-      md:'768px',
-      lg:'1024px',
+    extend: {
+      animation: {
+        'fade-in': 'fadeIn 0.3s ease-out forwards',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: 0, transform: 'scale(0.95)' },
+          '100%': { opacity: 1, transform: 'scale(1)' },
+        },
+      },
     },
-    extend: {},
   },
+  
   plugins: [],
 }
 

@@ -18,7 +18,7 @@ const useAuth = () => {
         }
 
         // Send a request to the backend to validate the token
-        const res = await axios.get("http://localhost:5000/api/user/profile", {
+        const res = await axios.get("http://localhost:5000/api/users/profile", {
           headers: {
             Authorization: `Bearer ${token}`,
           },

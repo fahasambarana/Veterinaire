@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        const res = await axios.get("http://localhost:5000/api/users/profile", {
+        const res = await axios.get("http://localhost:5000/api/auth/profile", {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUser(res.data.user); // Supposant que res.data.user contient les infos
@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
   // Fonction de connexion
   const login = async (email, password) => {
     try {
-      const res = await axios.post("http://localhost:5000/api/users/login", {
+      const res = await axios.post("http://localhost:5000/api/auth/login", {
         email,
         password,
       });
@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }) => {
   // Fonction d'inscription
   const inscription = async (formData) => {
     try {
-      const res = await axios.post("http://localhost:5000/api/users/register", formData);
+      const res = await axios.post("http://localhost:5000/api/auth/register", formData);
       localStorage.setItem("token", res.data.token);
       setUser(res.data.user); // <- important d'ajouter ça si le backend le retourne
       return res.data;

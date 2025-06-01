@@ -87,13 +87,7 @@ MongoDB
 
 Modèles pour animaux, clients, consultations, rendez-vous, utilisateurs, etc.
 
-Déploiement
 
-Backend sur Render/Heroku
-
-Frontend sur Vercel/Netlify
-
-Base de données MongoDB Atlas
 =======
 # Veterinaire
 Projet soutenance en L3

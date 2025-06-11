@@ -1,5 +1,5 @@
 // pages/OwnerPet.jsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import AddPetModal from "../components/AjoutPetModal";
 import PetList from "../components/PetList";

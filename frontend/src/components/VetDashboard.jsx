@@ -5,6 +5,7 @@ import { CalendarHeart, ClipboardList, Stethoscope, User2 } from "lucide-react";
 import React from "react";
 import DashboardCard from "../components/DashboardCard";
 import LayoutSidebar from "./LayoutSidebar";
+import AppointmentCalendar from "./AppointmentCalendar";
 
 const VetDashboard = () => {
   return (
@@ -55,22 +56,7 @@ const VetDashboard = () => {
                 Planifier
               </button>
             </div>
-            <FullCalendar
-              plugins={[dayGridPlugin, interactionPlugin]}
-              initialView="dayGridMonth"
-              editable
-              selectable
-              events={[
-                { title: "Consultation - Oscar", date: "2025-05-02" },
-                { title: "Contrôle - Luna", date: "2025-05-04" },
-              ]}
-              height="auto"
-              headerToolbar={{
-                start: "prev,next today",
-                center: "title",
-                end: "",
-              }}
-            />
+            <AppointmentCalendar></AppointmentCalendar>
           </div>
 
           {/* Section Derniers dossiers ajoutés */}

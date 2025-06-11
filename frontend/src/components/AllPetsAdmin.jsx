@@ -33,7 +33,7 @@ const AllPetsAdmin = () => {
 
   return (
     <Layout>
-      { user?.role === "admin" && (
+      { (user?.role === "admin" || user?.role === "vet") &&(
         <div className="bg-white rounded-xl shadow-md p-6 mx-[10px] flex-grow overflow-auto max-h-screen">
           <h2 className="text-2xl font-bold mb-4 text-teal-700">
             Tous les animaux

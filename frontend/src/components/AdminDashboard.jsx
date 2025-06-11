@@ -1,105 +1,99 @@
-import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin from "@fullcalendar/interaction";
-import FullCalendar from "@fullcalendar/react";
 import { AlertCircle, CalendarDays, PawPrint, Users } from "lucide-react";
 import React from "react";
-import DashboardCard from "../components/DashboardCard";
-import LayoutSidebar from "./LayoutSidebar";
-import ClientList from "./ClientList";
+// IMPORTANT : Les erreurs "Could not resolve" que vous rencontrez indiquent que les chemins d'importation ci-dessous sont incorrects.
+// VEUILLEZ VÉRIFIER L'ARBORESCENCE DE VOS DOSSIERS et AJUSTER CES CHEMINS EN CONSÉQUENCE.
+//
+// Par exemple :
+// Si AdminDashboard.jsx est dans 'src/pages/'
+// et DashboardCard est dans 'src/components/'
+// alors '../components/DashboardCard' est le bon chemin.
+//
+// Si LayoutSidebar est dans le MÊME DOSSIER que AdminDashboard.jsx (ex: 'src/pages/'),
+// alors './LayoutSidebar' est le bon chemin.
+//
+// Si votre structure est différente (ex: 'src/layouts/LayoutSidebar'), vous devrez le modifier.
+
+import DashboardCard from "../components/DashboardCard"; // Vérifiez ce chemin
+import LayoutSidebar from "./LayoutSidebar"; // Vérifiez ce chemin
+import ClientList from "./ClientList"; // Vérifiez ce chemin
 import { useEffect, useState } from "react";
 import axios from "axios";
 
+// Importe le composant Statistique
+import Statistique from "./Statistique"; // Vérifiez ce chemin
 
 const AdminDashboard = () => {
   const [clientCount, setClientCount] = useState(0);
 
+  // Fonction pour récupérer le nombre total de clients
   useEffect(() => {
     const fetchClientCount = async () => {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("token"); // Récupère le token d'authentification
       try {
         const res = await axios.get("http://localhost:5000/api/users/countClients", {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${token}`, // Ajoute le token aux en-têtes
           },
         });
-        setClientCount(res.data.totalClients);
+        setClientCount(res.data.totalClients); // Met à jour le nombre de clients
       } catch (err) {
         console.error("Erreur chargement nombre de clients :", err);
       }
     };
 
-    fetchClientCount();
-  }, []);
+    fetchClientCount(); // Appelle la fonction au montage du composant
+  }, []); // Le tableau de dépendances vide assure que l'appel ne se fait qu'une fois
+
   return (
     <LayoutSidebar>
-      <div className="">
+      <div className="p-8"> {/* Ajout d'un padding pour un meilleur espacement */}
 
-        {/* Titre principal */}
+        {/* Titre principal du tableau de bord */}
         <h1 className="text-4xl font-extrabold text-teal-700 mb-10 text-center">
           Tableau de bord Administrateur
         </h1>
 
-        {/* Cartes de résumé */}
+        {/* Section des cartes de résumé */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 mb-14">
           <DashboardCard
             title="Total animaux"
-            value="350"
+            value="350" // Valeur statique, vous pourriez vouloir la rendre dynamique
             icon={<PawPrint className="text-white w-8 h-8" />}
             bgColor="bg-gray-500"
           />
           <DashboardCard
             title="Propriétaires"
-            value={clientCount}
+            value={clientCount} // Affiche le nombre de clients récupéré
             icon={<Users className="text-white w-8 h-8" />}
             bgColor="bg-teal-400"
           />
           <DashboardCard
             title="Rendez-vous aujourd'hui"
-            value="15"
+            value="15" // Valeur statique, vous pourriez vouloir la rendre dynamique
             icon={<CalendarDays className="text-white w-8 h-8" />}
             bgColor="bg-purple-400"
           />
           <DashboardCard
             title="Alertes urgentes"
-            value="3"
+            value="3" // Valeur statique, vous pourriez vouloir la rendre dynamique
             icon={<AlertCircle className="text-white w-8 h-8" />}
             bgColor="bg-red-400"
           />
         </div>
 
-        {/* Partie principale */}
+        {/* Partie principale du tableau de bord avec le composant Statistique et la liste des clients */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
 
-          {/* Section Calendrier */}
-          <div className="md:col-span-2 bg-white rounded-2xl shadow-md p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-teal-700">Calendrier général</h2>
-              <button className="bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 px-6 rounded-lg transition">
-                Ajouter un événement
-              </button>
-            </div>
-            <FullCalendar
-              plugins={[dayGridPlugin, interactionPlugin]}
-              initialView="dayGridMonth"
-              editable
-              selectable
-              events={[
-                { title: "Visite annuelle - Bella", date: "2025-05-01" },
-                { title: "Vaccination collective", date: "2025-05-03" },
-              ]}
-              height="auto"
-              headerToolbar={{
-                start: "prev,next today",
-                center: "title",
-                end: "",
-              }}
-            />
+          {/* Section de Statistique */}
+          <div className="md:col-span-2 bg-white rounded-2xl z-10 shadow-md p-8">
+            {/* Le composant Statistique est maintenant affiché ici. */}
+            <Statistique />
           </div>
 
-          {/* Section Derniers propriétaires */}
+          {/* Section des Derniers propriétaires */}
           <div className="bg-white rounded-2xl shadow-md p-8">
             <h2 className="text-2xl font-bold text-teal-700 mb-6 text-center">Nouveaux propriétaires</h2>
-            <ClientList></ClientList>
+            <ClientList /> {/* Affiche la liste des clients */}
           </div>
 
         </div>

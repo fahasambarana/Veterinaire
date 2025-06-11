@@ -7,6 +7,7 @@ import Login from './components/Login';
 import { useAuth } from './context/AuthContext'; // 👈 use AuthContext instead of local hook
 import OwnerPet from './pages/OwnerPet';
 import Profile from './pages/Profile';
+import Appointement from './pages/Appointement';
 
 function App() {
   const { user, loading } = useAuth(); // 👈 comes from context now
@@ -24,7 +25,9 @@ function App() {
         <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
         <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
         <Route path="/animaux" element={user ? <OwnerPet /> : <Navigate to="/login" />} />
+        <Route path="/appointments" element={user ? <Appointement /> : <Navigate to="/login" />} />
         <Route path="/allPets" element={user ? <AllPetsAdmin /> : <Navigate to="/login" />} />
+        
 
 
         {/* Default Redirect */}

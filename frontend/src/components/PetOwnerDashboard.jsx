@@ -6,6 +6,7 @@ import React from "react";
 import DashboardCard from "../components/DashboardCard";
 import "../index.css";
 import Layout from "./LayoutNavbar";
+import AppointmentCalendar from "./AppointmentCalendar";
 
 const PetOwnerDashboard = () => {
   return (
@@ -57,22 +58,7 @@ const PetOwnerDashboard = () => {
                   Nouveau rendez-vous
                 </button>
               </div>
-              <FullCalendar
-                plugins={[dayGridPlugin, interactionPlugin]}
-                initialView="dayGridMonth"
-                editable
-                selectable
-                events={[
-                  { title: "Consultation de Bobby", date: "2025-04-30" },
-                  { title: "Vaccination de Milo", date: "2025-05-02" },
-                ]}
-                height="auto"
-                headerToolbar={{
-                  start: "prev,next today",
-                  center: "title",
-                  end: "",
-                }}
-              />
+            <AppointmentCalendar></AppointmentCalendar>
             </div>
 
             {/* Section Détail Animal */}

@@ -21,4 +21,22 @@ exports.countClients = async (req, res) => {
       res.status(500).json({ message: "Erreur serveur", error: error.message });
     }
   };
-  
+  // Obtenir tous les vétérinaires
+exports.getAllVets = async (req, res) => {
+  try {
+    const vets = await User.find({ role: "vet" }).select("username email _id");
+    res.status(200).json(vets); // ← doit renvoyer un tableau
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+exports.getPetsByOwner = async (req, res) => {
+  try {
+    const ownerId = req.user.id;
+    const pets = await Pet.find({ ownerId });
+    res.json(pets);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+

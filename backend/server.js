@@ -6,6 +6,7 @@ const connectDB = require("./config/database");
 const userRoute = require("./routes/userRoute");
 const petRoutes = require("./routes/petRoute");
 const authRoute = require("./routes/authRoute");
+const appointmentRoute = require("./routes/appointmentRoute");
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use(express.json());
 app.use("/api/auth", authRoute);
 app.use("/api/users", userRoute);
 app.use("/api/pets", petRoutes);
+app.use("/api/appointments", appointmentRoute);
 
 // Server
 const PORT = process.env.PORT || 5000;

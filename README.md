@@ -19,6 +19,7 @@ Enregistrement des consultations (date, diagnostic, traitement, vétérinaire re
 Affichage de l’historique médical d’un animal
 
 Téléversement de fichiers liés (ordonnances, radios, analyses, etc.)
+Tsy mampiditra ny mombamombanle bibiy ny utilisateur
 
 📅 3. Gestion des rendez-vous
 Prise de rendez-vous pour un animal avec un vétérinaire
@@ -92,3 +93,5 @@ Modèles pour animaux, clients, consultations, rendez-vous, utilisateurs, etc.
 # Veterinaire
 Projet soutenance en L3
 >>>>>>> aa804251be1fb60766a0ec23c785b99919da49a2
+Ny admin no mapiditra compte veterinaire
+asina interface afahana mpostule miasa

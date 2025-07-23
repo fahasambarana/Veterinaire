@@ -10,11 +10,11 @@ import { useAuth } from "../context/AuthContext";
 const menuItems = [
   
   { label: "Accueil", icon: Home, path: "/dashboard" },
-  { label: "Liste des animaux", icon: Settings, path: "/allPets" },
+  { label: "Liste des animaux", icon: Settings, path: "/allPets" }, // Note: Vous aviez /allPets, dans App.jsx on l'avait mis à /all-pets-admin. Assurez la cohérence.
   { label: "Rendez-vous", icon: CalendarCheck, path: "/appointments" },
-  { label: "Messages", icon: MessageSquare, path: "/messages" },
+  { label: "Messages", icon: MessageSquare, path: "/messages" }, // 👈 MODIFIÉ ICI : path est maintenant "/messages"
   { label: "Profil", icon: User, path: "/profile" },
-  { label: "Paramètres", icon: Settings, path: "/settings" },
+  { label: "Paramètres", icon: Settings, path: "/settings" }, // Si vous avez une page Paramètres
 ];
 
 export default function Sidebar() {

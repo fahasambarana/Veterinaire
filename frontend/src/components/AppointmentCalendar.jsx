@@ -9,29 +9,38 @@ const AppointmentCalendar = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [user, setUser] = useState(null);
 
-  // Récupération des données utilisateur depuis localStorage
   useEffect(() => {
     const userData = localStorage.getItem("user");
     if (userData) {
       try {
-        setUser(JSON.parse(userData));
+        const parsedUser = JSON.parse(userData);
+        const userWithNormalizedId = {
+          ...parsedUser,
+          id: parsedUser.id || parsedUser._id,
+        };
+        console.log("User chargé :", userWithNormalizedId); // DEBUG
+        setUser(userWithNormalizedId);
       } catch (err) {
         console.error("Erreur parsing user:", err);
       }
     }
   }, []);
 
-  // Récupération des rendez-vous
   const fetchAppointments = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("http://localhost:5000/api/appointments/all", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await axios.get(
+        "http://localhost:5000/api/appointments/mine",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
       const formattedEvents = res.data.map((rdv) => ({
         id: rdv._id,
-        title: `🐾 ${rdv.petId?.name || "Animal Inconnu"} - ${rdv.reason || "Consultation"}`,
+        title: `🐾 ${rdv.petId?.name || "Animal Inconnu"} - ${
+          rdv.reason || "Consultation"
+        }`,
         date: rdv.date,
         extendedProps: {
           vet: rdv.vetId?.username || "Vétérinaire inconnu",
@@ -52,7 +61,6 @@ const AppointmentCalendar = () => {
     fetchAppointments();
   }, []);
 
-  // Clic sur un événement
   const handleEventClick = (info) => {
     setSelectedEvent({
       id: info.event.id,
@@ -72,7 +80,15 @@ const AppointmentCalendar = () => {
     });
   };
 
-  // Mettre à jour le statut
+  // ✅ Fonction corrigée
+  const isAssignedVet = () => {
+    if (!user || !selectedEvent) return false;
+    const isVet = user.role?.toLowerCase() === "vet";
+    const isOwner = String(user.id) === String(selectedEvent.vetId);
+    console.log("Vérif rôle:", user.role, "| VetID match:", isOwner); // DEBUG
+    return isVet && isOwner;
+  };
+
   const updateStatus = async (status) => {
     try {
       const token = localStorage.getItem("token");
@@ -81,12 +97,10 @@ const AppointmentCalendar = () => {
         { status },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
       setSelectedEvent((prev) => ({
         ...prev,
         status,
       }));
-
       fetchAppointments();
     } catch (error) {
       console.error("Erreur mise à jour statut :", error);
@@ -101,14 +115,6 @@ const AppointmentCalendar = () => {
   };
 
   const closeModal = () => setSelectedEvent(null);
-
-  // Vérifie si l'utilisateur connecté est le vétérinaire assigné
-  const isAssignedVet = () => {
-    return (
-      user?.role === "vet" &&
-      String(user?.id) === String(selectedEvent?.vetId)
-    );
-  };
 
   return (
     <div className="bg-white p-6 rounded-xl relative">
@@ -147,37 +153,56 @@ const AppointmentCalendar = () => {
         }}
       />
 
-      {/* Modal des détails */}
       {selectedEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-xl shadow-lg w-96">
             <h3 className="text-xl font-semibold text-teal-700 mb-2">
               Détails du rendez-vous
             </h3>
-            <p><strong>Animal & Motif :</strong> {selectedEvent.title}</p>
-            <p><strong>Date :</strong> {selectedEvent.date}</p>
-            <p><strong>Propriétaire :</strong> {selectedEvent.owner}</p>
-            <p><strong>Vétérinaire :</strong> {selectedEvent.vet}</p>
-            <p><strong>Statut :</strong> <span className="capitalize">{selectedEvent.status}</span></p>
+            <p>
+              <strong>Animal & Motif :</strong> {selectedEvent.title}
+            </p>
+            <p>
+              <strong>Date :</strong> {selectedEvent.date}
+            </p>
+            <p>
+              <strong>Propriétaire :</strong> {selectedEvent.owner}
+            </p>
+            <p>
+              <strong>Vétérinaire :</strong> {selectedEvent.vet}
+            </p>
+            <p>
+              <strong>Statut :</strong>{" "}
+              <span className="capitalize">{selectedEvent.status}</span>
+            </p>
+
+            <div className="mt-2 text-xs text-gray-500">
+              <p>UserID: {user?.id}, Role: {user?.role}</p>
+              <p>VetID: {selectedEvent.vetId}</p>
+              <p>
+                isAssignedVet:{" "}
+                {isAssignedVet() ? "true ✅" : "false ❌"}
+              </p>
+            </div>
 
             <div className="mt-4">
               {selectedEvent.status === "en attente" && isAssignedVet() ? (
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-2">
                   <button
                     onClick={() => updateStatus("confirmé")}
-                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex-1"
                   >
                     Approuver
                   </button>
                   <button
                     onClick={() => updateStatus("annulé")}
-                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 flex-1"
                   >
                     Rejeter
                   </button>
                   <button
                     onClick={closeModal}
-                    className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500"
+                    className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500 flex-1"
                   >
                     Fermer
                   </button>
@@ -185,7 +210,8 @@ const AppointmentCalendar = () => {
               ) : (
                 <>
                   <p className="mt-4 text-center text-lg text-green-700 font-medium">
-                    Ce rendez-vous est <span className="capitalize">{selectedEvent.status}</span>.
+                    Ce rendez-vous est{" "}
+                    <span className="capitalize">{selectedEvent.status}</span>.
                   </p>
                   <button
                     onClick={closeModal}

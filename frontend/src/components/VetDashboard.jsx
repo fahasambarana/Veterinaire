@@ -1,13 +1,23 @@
-import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin from "@fullcalendar/interaction";
-import FullCalendar from "@fullcalendar/react";
 import { CalendarHeart, ClipboardList, Stethoscope, User2 } from "lucide-react";
-import React from "react";
 import DashboardCard from "../components/DashboardCard";
 import LayoutSidebar from "./LayoutSidebar";
-import AppointmentCalendar from "./AppointmentCalendar";
+import DisponibiliteCalendar from "../components/DisponibiliteCalendar";
+import useAuth from "../hooks/useAuth";
 
 const VetDashboard = () => {
+  const { user } = useAuth();
+  console.log("👤 user dans VetDashboard :", user);
+
+  if (!user) {
+    return (
+      <LayoutSidebar>
+        <div className="text-center text-gray-600 mt-20">
+          Chargement du tableau de bord...
+        </div>
+      </LayoutSidebar>
+    );
+  }
+
   return (
     <LayoutSidebar>
       <div className="">
@@ -50,13 +60,7 @@ const VetDashboard = () => {
 
           {/* Section Calendrier */}
           <div className="md:col-span-2 bg-white rounded-2xl shadow-md p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-teal-700">Planning des consultations</h2>
-              <button className="bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 px-6 rounded-lg transition">
-                Planifier
-              </button>
-            </div>
-            <AppointmentCalendar></AppointmentCalendar>
+            <DisponibiliteCalendar veterinaireId={user?._id} />
           </div>
 
           {/* Section Derniers dossiers ajoutés */}
@@ -84,7 +88,6 @@ const VetDashboard = () => {
           </div>
 
         </div>
-
       </div>
     </LayoutSidebar>
   );

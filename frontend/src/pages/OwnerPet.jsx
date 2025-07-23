@@ -11,6 +11,22 @@ const OwnerPet = () => {
   const [pets, setPets] = useState([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedPet, setSelectedPet] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [petToEdit, setPetToEdit] = useState(null);
+
+  // Nouveaux états pour le message de succès
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+
+  // Fonction utilitaire pour afficher un message temporaire
+  const showTimedMessage = (message) => {
+    setSuccessMessage(message);
+    setShowSuccessMessage(true);
+    setTimeout(() => {
+      setShowSuccessMessage(false);
+      setSuccessMessage(null);
+    }, 2000); // Le message disparaîtra après 2 secondes
+  };
 
   // Fetch pets from API
   const fetchPets = async () => {
@@ -36,29 +52,37 @@ const OwnerPet = () => {
 
   const handleNewPet = () => {
     fetchPets(); // recharger la liste après ajout
+    showTimedMessage("Animal ajouté avec succès !"); // Message après l'ajout
   };
 
   const handleDelete = async (petId) => {
     const token = localStorage.getItem("token");
     if (window.confirm("Confirmer la suppression ?")) {
       try {
-        await axios.delete(`http://localhost:5000/api/pets/delete/${petId}`, {
+        // CORRECTION DE L'URL DE SUPPRESSION COMME VU PRÉCÉDEMMENT
+        await axios.delete(`http://localhost:5000/api/pets/${petId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         fetchPets();
+        showTimedMessage("Animal supprimé avec succès !"); // Message après la suppression
       } catch (err) {
         console.error("Erreur de suppression :", err);
+        // Optionnel : afficher un message d'erreur si la suppression échoue
+        // showTimedMessage("Erreur lors de la suppression de l'animal.");
       }
     }
   };
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [petToEdit, setPetToEdit] = useState(null);
 
   const handleEdit = (pet) => {
-    // À implémenter plus tard (ex: modal d’édition)
     setPetToEdit(pet);
     setIsEditModalOpen(true);
-    console.log("Éditer :", pet);
+  };
+
+  // Nouveau gestionnaire pour la mise à jour de l'animal depuis la modale d'édition
+  const handlePetUpdated = () => {
+    fetchPets(); // Recharger la liste après la modification
+    setIsEditModalOpen(false); // Fermer la modale
+    showTimedMessage("Animal modifié avec succès !"); // Message après la modification
   };
 
   const handleViewDetails = (pet) => {
@@ -69,12 +93,32 @@ const OwnerPet = () => {
     setSelectedPet(null);
   };
 
-  return (
+    return (
     <Layout>
       <div className="min-h-screen bg-gray-100 p-8">
         <div className="max-w-5xl mx-auto">
+          {/* MESSAGE DE SUCCÈS STYLISÉ */}
+          {showSuccessMessage && successMessage && (
+            <div
+              className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50
+                         bg-green-100 border border-green-400 text-green-700
+                         px-6 py-3 rounded-lg shadow-xl animate-fade-in-down
+                         flex items-center justify-between min-w-[300px]" // Ajout de min-w pour une meilleure taille
+              role="alert"
+            >
+              <span className="font-semibold text-lg">{successMessage}</span>
+              <button
+                onClick={() => setShowSuccessMessage(false)} // Permet de fermer manuellement
+                className="ml-4 text-green-700 hover:text-green-900 focus:outline-none"
+              >
+                &times; {/* Symbole "x" pour fermer */}
+              </button>
+            </div>
+          )}
+
           {!selectedPet ? (
             <>
+              {/* ... (le reste de votre JSX existant pour la liste des animaux) ... */}
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-semibold text-gray-800">
                   Mes Animaux
@@ -103,7 +147,7 @@ const OwnerPet = () => {
                 isOpen={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}
                 pet={petToEdit}
-                onPetUpdated={fetchPets}
+                onPetUpdated={handlePetUpdated}
               />
             </>
           ) : (

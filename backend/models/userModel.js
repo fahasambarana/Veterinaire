@@ -7,7 +7,9 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: { type: String, enum: ["admin", "vet", "pet-owner"], default: "pet-owner" },
   phone: String,
-  animals: [{ type: mongoose.Schema.Types.ObjectId, ref: "Pet" }]
+  animals: [{ type: mongoose.Schema.Types.ObjectId, ref: "Pet" }],
+  // Ajout du champ profilePicture avec une valeur par défaut
+  profilePicture: { type: String, default: "/default-avatar.png" }
 }, {timestamps:true});// ➜ createdAt, updatedAt
 
 // Hash password before saving

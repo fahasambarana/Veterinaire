@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-// Middleware d'authentification
+// ✅ Middleware d'authentification
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
@@ -10,22 +10,32 @@ const authMiddleware = (req, res, next) => {
 
   const token = authHeader.split(' ')[1];
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-    if (err) {
-      return res.status(403).json({ error: 'Token invalide ou expiré' });
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Vérification de présence d'un id et d'un rôle
+    if (!decoded.id || !decoded.role) {
+      return res.status(403).json({ error: 'Token invalide : utilisateur incomplet' });
     }
 
-    req.user = decoded; // Ajoute l'utilisateur décodé à la requête
+    req.user = decoded; // Ajout de l'utilisateur à la requête
     next();
-  });
+  } catch (err) {
+    return res.status(403).json({ error: 'Token invalide ou expiré' });
+  }
 };
 
-// Middleware de vérification de rôle
+// ✅ Middleware de vérification des rôles
 const checkRole = (roles) => {
   return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ message: 'Accès interdit' });
+    if (!Array.isArray(roles)) {
+      return res.status(500).json({ message: 'Configuration de rôle invalide (doit être un tableau)' });
     }
+
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'Accès interdit : rôle insuffisant' });
+    }
+
     next();
   };
 };

@@ -1,6 +1,7 @@
 // backend/controllers/consultationController.js
 const Consultation = require("../models/ConsultationModel");
-const Ordonnance = require("../models/OrdonnanceModel"); // Assurez-vous d'avoir créé ce fichier modèle
+// const Ordonnance = require("../models/OrdonnanceModel"); // Plus besoin d'importer ici si la logique est déplacée
+const Pet = require("../models/petModel")
 
 /**
  * Créer une nouvelle consultation
@@ -107,54 +108,53 @@ exports.getConsultationsByPet = async (req, res) => {
   const userId = req.user.id;
   const userRole = req.user.role;
 
+  console.log(`[DEBUG - getConsultationsByPet] Requête pour petId: ${petId}`);
+  console.log(`[DEBUG - getConsultationsByPet] Utilisateur connecté - ID: ${userId}, Rôle: ${userRole}`);
+
   try {
+    // D'abord, trouver l'animal pour vérifier son propriétaire
+    const pet = await Pet.findById(petId);
+    if (!pet) {
+      console.log(`[DEBUG - getConsultationsByPet] Animal non trouvé pour ID: ${petId}`);
+      return res.status(404).json({ message: "Animal non trouvé." });
+    }
+    console.log(`[DEBUG - getConsultationsByPet] Animal trouvé: ${pet.name}, Propriétaire: ${pet.ownerId}`);
+
+
+    // Logique de contrôle d'accès
+    if (userRole === "pet-owner") {
+      // Si l'utilisateur est un propriétaire d'animal, il doit être le propriétaire de cet animal
+      if (String(pet.ownerId) !== userId) {
+        console.log(`[DEBUG - getConsultationsByPet] Accès refusé: Propriétaire d'animal non autorisé. (pet.ownerId: ${pet.ownerId}, userId: ${userId})`);
+        return res.status(403).json({
+          message:
+            "Vous n'êtes pas autorisé à consulter l'historique de cet animal.",
+        });
+      }
+      console.log(`[DEBUG - getConsultationsByPet] Accès accordé: Propriétaire de l'animal.`);
+    } else if (userRole === "vet" || userRole === "admin") {
+      // Les vétérinaires et administrateurs ont accès
+      console.log(`[DEBUG - getConsultationsByPet] Accès accordé: Vétérinaire ou Admin.`);
+    } else {
+      // Rôle non autorisé
+      console.log(`[DEBUG - getConsultationsByPet] Accès refusé: Rôle non autorisé (${userRole}).`);
+      return res.status(403).json({ message: "Non autorisé à accéder à cette ressource." });
+    }
+
+    // Si l'accès est accordé, récupérer les consultations
     const consultations = await Consultation.find({ petId })
       .populate("vetId", "username email")
-      .populate({
-        path: "petId",
-        select: "name species ownerId",
-        populate: {
-          path: "ownerId",
-          select: "username email",
-        },
-      })
-      .populate("appointmentId", "date reason status")
-      .sort({ date: -1 });
+      .populate("petId", "name species breed") // On peuple l'animal ici aussi, même si déjà vérifié, pour les données renvoyées
+      .sort({ createdAt: -1 });
 
-    if (!consultations || consultations.length === 0) {
-      return res.status(404).json({
-        message: "Aucune consultation trouvée pour cet animal.",
-      });
-    }
-
-    // Contrôle d'accès avancé : Le propriétaire doit posséder l'animal
-    if (userRole === "pet-owner") {
-      const isOwner = consultations.some(
-        (consult) =>
-          consult.petId && String(consult.petId.ownerId) === userId
-      );
-      if (!isOwner) {
-        return res
-          .status(403)
-          .json({ message: "Accès refusé. Vous n'êtes pas le propriétaire de cet animal." });
-      }
-    } else if (userRole === "vet") {
-        // Un vétérinaire peut voir toutes les consultations d'un animal s'il est l'un des vétérinaires ayant traité cet animal
-        // ou si vous permettez à tous les vétérinaires de voir toutes les consultations des animaux.
-        // Pour une sécurité plus stricte, on pourrait vérifier si le vétérinaire est associé à cette consultation.
-    } else if (userRole === "admin") {
-        // Les admins ont accès à tout
-    } else {
-        return res.status(403).json({ message: "Accès refusé." });
-    }
-
+    console.log(`[DEBUG - getConsultationsByPet] Consultations trouvées: ${consultations.length}`);
     res.json(consultations);
-  } catch (error) {
-    console.error(`Erreur getConsultationsByPet ${petId}:`, error.message);
-    if (error.name === "CastError") {
-      return res.status(400).json({ message: "ID d'animal invalide." });
+  } catch (err) {
+    console.error(`[DEBUG - getConsultationsByPet] Erreur serveur pour petId ${petId}:`, err); // Log l'objet d'erreur complet
+    if (err.name === "CastError") {
+      return res.status(400).json({ message: "ID de l'animal invalide." });
     }
-    res.status(500).json({ message: "Erreur serveur" });
+    res.status(500).json({ message: "Erreur serveur lors de la récupération des consultations." });
   }
 };
 
@@ -187,7 +187,7 @@ exports.getConsultationById = async (req, res) => {
 
     if (userRole === "admin") {
       // Admin a accès à tout
-    } else if (userRole === "vet" && consultation.vetId && String(consultation.vetId._id) === userId) { // CORRIGÉ: Ajout de ._id
+    } else if (userRole === "vet" && consultation.vetId && String(consultation.vetId._id) === userId) {
       // Vétérinaire assigné a accès
     } else if (
       userRole === "pet-owner" &&
@@ -230,7 +230,6 @@ exports.updateConsultation = async (req, res) => {
       return res.status(404).json({ message: "Consultation non trouvée." });
     }
 
-    // CORRIGÉ: Ajout de ._id
     if (req.user.role === "vet" && String(consultation.vetId._id) !== req.user.id) {
       return res.status(403).json({ message: "Modification non autorisée." });
     }
@@ -263,148 +262,26 @@ exports.updateConsultation = async (req, res) => {
   }
 };
 
-
 /**
- * Ajouter une ordonnance à une consultation existante
+ * Obtenir le nombre total de consultations
  */
-exports.addOrdonnanceToConsultation = async (req, res) => {
-  const { consultationId } = req.params;
-  const { medicaments, notesSpeciales } = req.body;
-  const vetId = req.user.id;
-
-  if (!medicaments || medicaments.length === 0 || !consultationId) {
-    return res.status(400).json({
-      message: "Les médicaments et l'ID de consultation sont obligatoires pour créer une ordonnance.",
-    });
-  }
-
+exports.countConsultations = async (req, res) => {
   try {
-    const consultation = await Consultation.findById(consultationId);
-    if (!consultation) {
-      return res.status(404).json({ message: "Consultation non trouvée." });
-    }
-
-    // CORRIGÉ: Ajout de ._id
-    if (req.user.role === "vet" && String(consultation.vetId._id) !== vetId) {
-        return res.status(403).json({ message: "Non autorisé à ajouter une ordonnance à cette consultation (vous n'êtes pas le vétérinaire assigné)." });
-    }
+    // Contrôle d'accès : Seuls les administrateurs et les vétérinaires peuvent accéder à ce comptage total
     if (!["vet", "admin"].includes(req.user.role)) {
-        return res.status(403).json({ message: "Seuls les vétérinaires et les administrateurs peuvent ajouter des ordonnances." });
+      return res.status(403).json({ message: "Accès interdit. Seuls les vétérinaires et les administrateurs peuvent obtenir le nombre total de consultations." });
     }
 
-    const nouvelleOrdonnance = new Ordonnance({
-      consultationId,
-      vetId,
-      medicaments,
-      notesSpeciales,
-    });
-
-    const savedOrdonnance = await nouvelleOrdonnance.save();
-
-    res.status(201).json({
-      message: "Ordonnance ajoutée avec succès !",
-      ordonnance: savedOrdonnance,
-    });
-  } catch (err) {
-    console.error("Erreur ajout ordonnance à consultation (détails) :", err);
-    if (err.name === 'ValidationError') {
-      const errors = Object.values(err.errors).map(el => el.message);
-      return res.status(400).json({
-        message: "Erreur de validation lors de l'enregistrement de l'ordonnance.",
-        errors: errors,
-      });
-    }
-    if (err.name === "CastError") {
-      return res.status(400).json({ message: "ID de consultation ou de vétérinaire invalide." });
-    }
-    res.status(500).json({
-      message: "Échec de l'enregistrement de l'ordonnance.",
-      error: err.message,
-    });
+    const totalConsultations = await Consultation.countDocuments();
+    res.json({ totalConsultations });
+  } catch (error) {
+    console.error("Erreur countConsultations:", error.message);
+    res.status(500).json({ message: "Erreur serveur lors du comptage des consultations." });
   }
 };
 
-/**
- * Obtenir les ordonnances pour une consultation spécifique
- */
-exports.getOrdonnancesByConsultationId = async (req, res) => {
-  const { consultationId } = req.params;
-  const userId = req.user.id;
-  const userRole = req.user.role;
-
-  try {
-    const consultation = await Consultation.findById(consultationId)
-      .populate("petId", "ownerId")
-      .populate("vetId"); // Assurez-vous que vetId est peuplé pour le contrôle d'accès
-
-    if (!consultation) {
-      return res.status(404).json({ message: "Consultation non trouvée." });
-    }
-
-    // Contrôles d'accès
-    // Ici, consultation.vetId._id est déjà correct
-    if (userRole === "admin") {
-    } else if (userRole === "vet" && consultation.vetId && String(consultation.vetId._id) === userId) {
-    } else if (userRole === "pet-owner" && consultation.petId && String(consultation.petId.ownerId) === userId) {
-    } else {
-        return res.status(403).json({ message: "Accès refusé. Vous n'êtes pas autorisé à voir les ordonnances de cette consultation." });
-    }
-
-    const ordonnances = await Ordonnance.find({ consultationId })
-      .populate("vetId", "username email")
-      .sort({ dateEmission: -1 });
-
-    res.json(ordonnances);
-  } catch (err) {
-    console.error(`Erreur getOrdonnancesByConsultationId ${consultationId}:`, err.message);
-    if (err.name === "CastError") {
-      return res.status(400).json({ message: "ID de consultation invalide." });
-    }
-    res.status(500).json({ message: "Erreur serveur lors du chargement des ordonnances." });
-  }
-};
-
-
-/**
- * Supprimer une ordonnance
- */
-exports.deleteOrdonnance = async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const ordonnance = await Ordonnance.findById(id).populate('consultationId');
-
-    if (!ordonnance) {
-      return res.status(404).json({ message: "Ordonnance non trouvée." });
-    }
-
-    // Contrôle d'accès : Seul l'administrateur ou le vétérinaire qui a créé l'ordonnance
-    // ou le vétérinaire de la consultation parente peut la supprimer.
-    if (req.user.role === "admin") {
-      // Admin peut supprimer
-    } else if (req.user.role === "vet") {
-        // Le vétérinaire qui a émis l'ordonnance (ordonnance.vetId n'est pas populé, donc pas besoin de ._id)
-        if (String(ordonnance.vetId) === req.user.id) {
-            // OK
-        }
-        // OU le vétérinaire assigné à la consultation parente (consultationId est populé, son vetId doit être vérifié avec ._id)
-        else if (ordonnance.consultationId && ordonnance.consultationId.vetId && String(ordonnance.consultationId.vetId._id) === req.user.id) { // CORRIGÉ: Ajout de ._id
-            // OK
-        } else {
-            return res.status(403).json({ message: "Non autorisé à supprimer cette ordonnance." });
-        }
-    } else {
-      return res.status(403).json({ message: "Accès refusé. Seuls les vétérinaires et les administrateurs peuvent supprimer des ordonnances." });
-    }
-
-    await Ordonnance.findByIdAndDelete(id);
-    res.status(200).json({ message: "Ordonnance supprimée avec succès." });
-
-  } catch (err) {
-    console.error(`Erreur suppression ordonnance ${id}:`, err.message);
-    if (err.name === "CastError") {
-      return res.status(400).json({ message: "ID d'ordonnance invalide." });
-    }
-    res.status(500).json({ message: "Erreur serveur lors de la suppression de l'ordonnance." });
-  }
-};
+// REMARQUE: Les fonctions de gestion des ordonnances (addOrdonnanceToConsultation,
+// getOrdonnancesByConsultationId, deleteOrdonnance) ont été retirées de ce fichier
+// pour centraliser leur logique dans ordonnanceController.js.
+// Assurez-vous que vos routes pour les ordonnances (`ordonnanceRoutes.js`)
+// appellent les fonctions correspondantes dans `ordonnanceController.js`.

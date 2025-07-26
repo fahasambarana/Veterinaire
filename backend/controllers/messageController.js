@@ -4,11 +4,33 @@ const Conversation = require("../models/conversationModel");
 exports.sendMessage = async (req, res) => {
   try {
     const { conversationId } = req.params;
-    const { content, messageType = 'text', fileUrl } = req.body;
-    const senderId = req.user.id;
+    // When using multer, text fields from FormData are in req.body
+    // and file details are in req.file
+    const { content } = req.body;
+    const file = req.file; // This will contain the uploaded file info if any
 
-    if (!content) {
-      return res.status(400).json({ message: "Le contenu du message est requis." });
+    // --- DEBUGGING LOGS ---
+    console.log("Received message request:");
+    console.log("req.body:", req.body);
+    console.log("req.file:", file);
+    // --- END DEBUGGING LOGS ---
+
+    const senderId = req.user.id; // Assuming req.user.id is set by authMiddleware
+
+    // Determine message type and file URL
+    let messageType = "text";
+    let fileUrl = undefined; // Use undefined if no file, so it doesn't get saved as null string
+
+    if (file) {
+      // If a file is uploaded, set messageType and fileUrl
+      messageType = file.mimetype.startsWith("image/") ? "image" : "file";
+      // file.path will be the path where multer saved the file (e.g., 'uploads/filename.ext')
+      fileUrl = file.path;
+    }
+
+    // Validate content: either content or a file must be present
+    if (!content && !file) {
+      return res.status(400).json({ message: "Le contenu du message ou un fichier est requis." });
     }
 
     const conversation = await Conversation.findById(conversationId);
@@ -23,18 +45,20 @@ exports.sendMessage = async (req, res) => {
     const newMessage = new Message({
       conversation: conversationId,
       senderId,
-      content,
-      messageType,
-      fileUrl: messageType !== 'text' ? fileUrl : undefined,
+      content: content || '', // Ensure content is at least an empty string if only file is sent
+      messageType: messageType,
+      fileUrl: fileUrl,
     });
 
     await newMessage.save();
 
+    // Update conversation's last message and updatedAt
     conversation.lastMessage = newMessage._id;
     conversation.updatedAt = Date.now();
     await conversation.save();
 
     const io = req.app.get('io');
+    // Populate senderId for the message being sent back via socket
     const populatedMessage = await Message.findById(newMessage._id).populate('senderId', 'username profilePicture');
 
     if (io) {
@@ -48,7 +72,6 @@ exports.sendMessage = async (req, res) => {
   }
 };
 
-// ✅ Remis ici
 exports.getMessagesInConversation = async (req, res) => {
   try {
     const { conversationId } = req.params;

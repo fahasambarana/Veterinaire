@@ -22,8 +22,8 @@ const UserAppointmentsAndScheduler = () => {
   }
 
   return (
-    <div className="p-4 bg-white rounded-lg shadow-md mx-auto transition-all duration-300 w-[calc(100%-16rem)] pr-8">
-      <h1 className="text-3xl font-bold mb-6 text-teal-800">Votre Espace Rendez-vous</h1>
+    <div className="p-4 bg-white rounded-lg shadow-md mt-8 mx-auto transition-all duration-300 w-[calc(100%-16rem)] pr-8">
+      {/* <h1 className="text-3xl font-bold mb-6 text-teal-800">Votre Espace Rendez-vous</h1> */}
 
       {/* Conditional rendering based on showScheduler state */}
       {showScheduler ? (

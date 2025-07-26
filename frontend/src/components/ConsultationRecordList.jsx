@@ -1,21 +1,35 @@
+""// src/components/ConsultationRecordList.jsx
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { useParams, useNavigate, useLocation } from "react-router-dom"; // Importez useNavigate et useLocation
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
+import LayoutSidebar from "./LayoutSidebar";
+import {
+  CalendarDays,
+  PawPrint,
+  Stethoscope,
+  Weight,
+  Thermometer,
+  FileText,
+  Eye,
+  ArrowLeft,
+  Loader2,
+  Info,
+} from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const ConsultationRecordList = () => {
   const { user } = useAuth();
-  const { petId } = useParams(); // Récupérer le petId depuis l'URL s'il existe
-  const navigate = useNavigate(); // Hook pour la navigation
-  const location = useLocation(); // Hook pour accéder à location.state
-  const petNameFromState = location.state?.petName; // Récupérer le nom de l'animal si passé via state
+  const { petId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const petNameFromState = location.state?.petName;
 
   const [consultations, setConsultations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [displayedPetName, setDisplayedPetName] = useState(""); // Pour stocker le nom de l'animal à afficher
+  const [displayedPetName, setDisplayedPetName] = useState("");
 
   useEffect(() => {
     const fetchConsultations = async () => {
@@ -26,16 +40,13 @@ const ConsultationRecordList = () => {
       if (!token) {
         setError("Authentification requise. Veuillez vous connecter.");
         setLoading(false);
-        // Optionnel: rediriger vers la page de connexion
-        // navigate('/login');
         return;
       }
 
       try {
-        // CORRECTION MAJEURE: Adapter les URL à vos routes backend
         const url = petId
-          ? `${API_URL}/consultations/pet/${petId}` // Pour une liste filtrée par animal
-          : `${API_URL}/consultations/all`; // Pour toutes les consultations
+          ? `${API_URL}/consultations/pet/${petId}`
+          : `${API_URL}/consultations/all`;
 
         const res = await axios.get(url, {
           headers: { Authorization: `Bearer ${token}` },
@@ -43,135 +54,160 @@ const ConsultationRecordList = () => {
 
         setConsultations(res.data);
 
-        // Si petId est présent et que petName a été passé via state, l'utiliser.
-        // Sinon, si les consultations sont chargées et qu'elles ont un petId,
-        // on peut déduire le nom de l'animal de la première consultation (si pertinent).
         if (petId && petNameFromState) {
           setDisplayedPetName(petNameFromState);
         } else if (petId && res.data.length > 0 && res.data[0].petId?.name) {
           setDisplayedPetName(res.data[0].petId.name);
         } else {
-            setDisplayedPetName(""); // Réinitialiser si pas de petId ou pas de nom trouvé
+          setDisplayedPetName("");
         }
-
-
       } catch (err) {
-        console.error("Erreur chargement consultations :", err.response?.data?.message || err.message, err);
-        setError(err.response?.data?.message || "Erreur lors du chargement des consultations. Veuillez réessayer.");
+        console.error("Erreur chargement consultations :", err);
+        setError(err.response?.data?.message || "Erreur lors du chargement des consultations.");
       } finally {
         setLoading(false);
       }
     };
 
-    // Assurez-vous que l'utilisateur est chargé avant de tenter de récupérer les consultations
-    // Cela évite des appels inutiles si le user context n'est pas encore prêt
     if (user) {
       fetchConsultations();
     }
-  }, [petId, user, navigate, petNameFromState]); // Ajout de user et navigate aux dépendances
+  }, [petId, user, navigate, petNameFromState]);
 
-  // Gestion des droits d'accès
-  if (!user || (user?.role !== "vet" && user?.role !== "admin")) {
-    return (
-      <div className="bg-white p-6 rounded shadow-md w-full max-w-lg text-center text-red-600 mx-auto mt-8">
-        Vous n'êtes pas autorisé à accéder à cette page de l'historique des consultations.
-      </div>
-    );
-  }
-
-  // États de chargement et d'erreur
-  if (loading)
-    return <div className="text-center py-8 text-gray-700 mx-auto mt-8">Chargement des consultations...</div>;
-
-  if (error)
-    return (
-      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 mx-auto mt-8 max-w-lg">
-        <strong className="font-bold">Erreur: </strong>
-        <span className="block sm:inline">{error}</span>
-      </div>
-    );
-
-  // Pas de consultations trouvées
-  if (consultations.length === 0) {
-    return (
-      <div className="bg-white p-6 rounded-xl shadow-md mx-auto my-8 max-w-4xl text-center text-gray-500">
-        {petId && displayedPetName ? (
-            <p>Aucune consultation trouvée pour l'animal : <span className="font-semibold text-teal-700">{displayedPetName}</span>.</p>
-        ) : (
-            <p>Aucune consultation trouvée.</p>
-        )}
-      </div>
-    );
-  }
-
-  // Fonction pour naviguer vers le détail/édition de la consultation
   const handleViewOrEdit = (consultationId) => {
     navigate(`/consultation-details/${consultationId}`);
   };
 
-  return (
-    <div className="bg-white p-4 rounded-xl shadow-md mx-auto my-8 max-w-6xl">
-      <h2 className="text-2xl font-bold text-teal-700 mb-6 text-center">
-        Historique des consultations
-        {petId && displayedPetName && ` de ${displayedPetName}`}
-      </h2>
-
-      {/* Bouton de retour à la liste des animaux si filtré par animal */}
-      {petId && (
-        <div className="mb-4">
-          <button
-            onClick={() => navigate('/allPets')}
-            className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md text-sm font-medium transition duration-200"
-          >
-            ← Retour à la liste des animaux
-          </button>
+  if (!user || (user?.role !== "vet" && user?.role !== "admin")) {
+    return (
+      <LayoutSidebar>
+        <div className="bg-white p-8 rounded-2xl shadow-xl text-center text-red-600 mx-auto mt-20 border border-red-200 animate-fade-in-down">
+          <h3 className="text-2xl font-bold mb-4">Accès Refusé</h3>
+          <p>Vous n'êtes pas autorisé à accéder à cette page de l'historique des consultations.</p>
         </div>
-      )}
+      </LayoutSidebar>
+    );
+  }
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full border border-gray-200 shadow-sm rounded-lg text-sm">
-          <thead className="bg-teal-600 text-white">
-            <tr>
-              <th className="p-3 text-left">Date</th>
-              <th className="p-3 text-left">Animal</th>
-              <th className="p-3 text-left">Vétérinaire</th> {/* Ajout de la colonne Vétérinaire */}
-              <th className="p-3 text-left">Poids (kg)</th>
-              <th className="p-3 text-left">Température (°C)</th>
-              <th className="p-3 text-left">Diagnostic</th>
-              <th className="p-3 text-left">Actions</th> {/* Nouvelle colonne pour les actions */}
-            </tr>
-          </thead>
-          <tbody>
-            {consultations.map((c) => (
-              <tr key={c._id} className="border-t hover:bg-gray-50">
-                <td className="p-2">
-                  {c.date
-                    ? new Date(c.date).toLocaleDateString("fr-FR", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })
-                    : "-"}
-                </td>
-                <td className="p-2 font-medium">{c.petId?.name || "Inconnu"}</td>
-                <td className="p-2">{c.vetId?.username || "Inconnu"}</td> {/* Affichage du nom du vétérinaire */}
-                <td className="p-2">{c.weight !== null ? `${c.weight} kg` : "-"}</td>
-                <td className="p-2">{c.temperature !== null ? `${c.temperature} °C` : "-"}</td>
-                <td className="p-2 max-w-[200px] truncate">{c.diagnosis}</td> {/* Truncate long text */}
-                <td className="p-2">
-                  <button
-                    onClick={() => handleViewOrEdit(c._id)}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-xs font-medium transition duration-200"
-                  >
-                    Voir/Modifier
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+  if (loading)
+    return (
+      <LayoutSidebar>
+        <div className="flex flex-col justify-center items-center min-h-[400px] text-gray-700 bg-gray-50 rounded-xl shadow-md mx-auto my-8 animate-pulse">
+          <Loader2 className="w-10 h-10 animate-spin text-teal-600 mb-3" />
+          <p className="text-lg">Chargement des consultations...</p>
+        </div>
+      </LayoutSidebar>
+    );
+
+  if (error)
+    return (
+      <LayoutSidebar>
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 mx-auto mt-8 max-w-lg shadow-md animate-fade-in-down">
+          <strong className="font-bold">Erreur: </strong>
+          <span className="block sm:inline">{error}</span>
+        </div>
+      </LayoutSidebar>
+    );
+
+  return (
+    <LayoutSidebar>
+      <div className="w-full">
+        <div className="bg-white p-8 ml-[-300px] rounded-xl  border border-gray-200 animate-fade-in">
+          <h2 className="text-3xl font-extrabold text-teal-700 mb-8 text-center">
+            Historique des consultations
+            {petId && displayedPetName && ` de ${displayedPetName}`}
+          </h2>
+
+          {petId && (
+            <div className="mb-6">
+              <button
+                onClick={() => navigate('/allPets')}
+                className="inline-flex items-center px-5 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition duration-200 transform hover:scale-105 shadow-md"
+              >
+                <ArrowLeft className="w-5 h-5 mr-2" /> Retour à la liste des animaux
+              </button>
+            </div>
+          )}
+
+          {consultations.length === 0 ? (
+            <div className="bg-gray-50 p-8 rounded-xl shadow-sm text-center text-gray-500 border border-gray-200">
+              <Info className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              {petId && displayedPetName ? (
+                <p className="text-lg">Aucune consultation trouvée pour l'animal : <span className="font-semibold text-teal-700">{displayedPetName}</span>.</p>
+              ) : (
+                <p className="text-lg">Aucune consultation trouvée pour le moment.</p>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-md">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-teal-700 text-white">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-sm font-bold uppercase tracking-wider rounded-tl-lg">
+                      Date
+                    </th>
+                    <th className="px-4 py-2 text-left text-sm font-bold uppercase tracking-wider">
+                       Animal
+                    </th>
+                    <th className="px-4 py-2 text-left text-sm font-bold uppercase tracking-wider">
+                       Vétérinaire
+                    </th>
+                    <th className="px-4 py-2 text-left text-sm font-bold uppercase tracking-wider">
+                      Poids (kg)
+                    </th>
+                    <th className="px-4 py-2 text-left text-sm font-bold uppercase tracking-wider">
+                      Température (°C)
+                    </th>
+                    <th className="px-4 py-2 text-left text-sm font-bold uppercase tracking-wider">
+                      Diagnostic
+                    </th>
+                    <th className="px-4 py-2 text-left text-sm font-bold uppercase tracking-wider rounded-tr-lg">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {consultations.map((c) => (
+                    <tr key={c._id} className="hover:bg-teal-50 transition duration-150">
+                      <td className="px-6 py-4 text-sm text-gray-800">
+                        {c.date ? new Date(c.date).toLocaleDateString("fr-FR", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        }) : "-"}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        {c.petId?.name || "Inconnu"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {c.vetId?.username || "Inconnu"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {c.weight !== null ? `${c.weight} kg` : "-"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {c.temperature !== null ? `${c.temperature} °C` : "-"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700 max-w-[250px] truncate" title={c.diagnosis}>
+                        {c.diagnosis}
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        <button
+                          onClick={() => handleViewOrEdit(c._id)}
+                          className="inline-flex items-center bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md transition transform hover:scale-105 shadow-sm"
+                        >
+                          <Eye className="w-4 h-4 mr-2" /> Voir/Modifier
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </LayoutSidebar>
   );
 };
 

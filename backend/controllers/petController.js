@@ -10,23 +10,19 @@ exports.addPet = async (req, res) => {
 
     // Validation des champs obligatoires
     if (!name || !species || !age || !gender) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Tous les champs (nom, espèce, âge, sexe) sont obligatoires pour ajouter un animal.",
-        });
+      return res.status(400).json({
+        message:
+          "Tous les champs (nom, espèce, âge, sexe) sont obligatoires pour ajouter un animal.",
+      });
     }
 
     // Optionnel: Vérifier si le propriétaire existe réellement
     const ownerExists = await User.findById(ownerId);
     if (!ownerExists) {
-      return res
-        .status(404)
-        .json({
-          message:
-            "Propriétaire introuvable. Veuillez vous connecter avec un compte valide.",
-        });
+      return res.status(404).json({
+        message:
+          "Propriétaire introuvable. Veuillez vous connecter avec un compte valide.",
+      });
     }
 
     const image = req.file ? req.file.filename : null; // Récupère le nom du fichier de l'image si uploadée
@@ -52,12 +48,10 @@ exports.addPet = async (req, res) => {
       .json({ message: "Animal ajouté avec succès", pet: populatedPet });
   } catch (error) {
     console.error("Erreur serveur lors de l'ajout de l'animal :", error); // Log l'erreur pour le débogage
-    res
-      .status(500)
-      .json({
-        message: "Erreur serveur lors de l'ajout de l'animal",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Erreur serveur lors de l'ajout de l'animal",
+      error: error.message,
+    });
   }
 };
 
@@ -104,12 +98,10 @@ exports.updatePet = async (req, res) => {
       // Gère les IDs mal formés
       return res.status(400).json({ message: "ID d'animal invalide." });
     }
-    res
-      .status(500)
-      .json({
-        message: "Erreur serveur lors de la modification de l'animal",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Erreur serveur lors de la modification de l'animal",
+      error: error.message,
+    });
   }
 };
 
@@ -133,12 +125,10 @@ exports.deletePet = async (req, res) => {
     if (error.name === "CastError") {
       return res.status(400).json({ message: "ID d'animal invalide." });
     }
-    res
-      .status(500)
-      .json({
-        message: "Erreur serveur lors de la suppression de l'animal",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Erreur serveur lors de la suppression de l'animal",
+      error: error.message,
+    });
   }
 };
 
@@ -157,12 +147,10 @@ exports.getPetsByOwner = async (req, res) => {
       "Erreur serveur lors de la récupération des animaux du propriétaire :",
       error
     );
-    res
-      .status(500)
-      .json({
-        message: "Erreur serveur lors de la récupération des animaux",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Erreur serveur lors de la récupération des animaux",
+      error: error.message,
+    });
   }
 };
 
@@ -177,12 +165,10 @@ exports.getAllPets = async (req, res) => {
       "Erreur serveur lors de la récupération de tous les animaux :",
       error
     );
-    res
-      .status(500)
-      .json({
-        message: "Erreur serveur lors de la récupération de tous les animaux",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Erreur serveur lors de la récupération de tous les animaux",
+      error: error.message,
+    });
   }
 };
 
@@ -205,11 +191,9 @@ exports.getPetById = async (req, res) => {
     const isVetOrAdmin = userRole === "vet" || userRole === "admin";
 
     if (!isOwner && !isVetOrAdmin) {
-      return res
-        .status(403)
-        .json({
-          message: "Accès refusé. Vous n'êtes pas autorisé à voir cet animal.",
-        });
+      return res.status(403).json({
+        message: "Accès refusé. Vous n'êtes pas autorisé à voir cet animal.",
+      });
     }
 
     res.status(200).json(pet);
@@ -218,22 +202,33 @@ exports.getPetById = async (req, res) => {
     if (error.name === "CastError") {
       return res.status(400).json({ message: "ID d'animal invalide." });
     }
-    res
-      .status(500)
-      .json({
-        message: "Erreur serveur lors de la récupération de l'animal par ID.",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Erreur serveur lors de la récupération de l'animal par ID.",
+      error: error.message,
+    });
   }
 };
 // Compter les animaux d’un utilisateur (par ownerId)
-const countPetsByOwner = async (ownerId) => {
+exports.countPetsByOwner = async (ownerId) => {
   try {
     const count = await Pet.countDocuments({ ownerId: ownerId });
     return count;
   } catch (error) {
-    console.error('Erreur lors du comptage des animaux:', error);
+    console.error("Erreur lors du comptage des animaux:", error);
     throw error;
+  }
+};
+exports.getTotalPetCount = async (req, res) => {
+  try {
+    // Le contrôle d'accès (admin/vet) doit être géré par le middleware de route
+    const count = await Pet.countDocuments();
+    res.status(200).json({ totalPets: count });
+  } catch (error) {
+    console.error("Erreur serveur lors du comptage total des animaux:", error);
+    res.status(500).json({
+      message: "Erreur serveur lors du comptage total des animaux",
+      error: error.message,
+    });
   }
 };
 // GET /api/pets/mine/count
@@ -243,11 +238,13 @@ exports.getPetCountByOwner = async (req, res) => {
     const count = await Pet.countDocuments({ ownerId });
     res.status(200).json({ count });
   } catch (error) {
-    console.error('Erreur lors du comptage des animaux par utilisateur:', error);
+    console.error(
+      "Erreur lors du comptage des animaux par utilisateur:",
+      error
+    );
     res.status(500).json({
       message: "Erreur serveur lors du comptage des animaux de l'utilisateur",
       error: error.message,
     });
   }
 };
-

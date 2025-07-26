@@ -1,4 +1,3 @@
-// backend/server.js
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
@@ -39,9 +38,11 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// 🚨 MODIFICATION CRUCIALE ICI : Servir les fichiers statiques de 'uploads/pets' et 'uploads/profiles'
+// 🚨 MODIFICATION CRUCIALE ICI : Servir les fichiers statiques de 'uploads/pets', 'uploads/profiles' et le dossier 'uploads' racine
 app.use('/uploads/pets', express.static(path.join(__dirname, 'uploads', 'pets')));
 app.use('/uploads/profiles', express.static(path.join(__dirname, 'uploads', 'profiles')));
+// NOUVEAU: Servir le répertoire 'uploads' racine pour les fichiers de messages
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
 // Routes

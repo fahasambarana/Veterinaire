@@ -1,23 +1,27 @@
 const express = require('express');
 const router = express.Router();
-const { authMiddleware, checkRole } = require('../middleware/authMiddleware'); 
+const { authMiddleware, checkRole } = require('../middleware/authMiddleware');
+const upload = require('../middleware/upload'); // Importez votre middleware upload.js
 
 const {
   sendMessage,
-  getMessagesInConversation, // ✅ Ajouté ici
+  getMessagesInConversation,
   markMessageAsRead
 } = require('../controllers/messageController');
 
-// Auth obligatoire pour toutes les routes
 router.use(authMiddleware);
 
-// ✅ Récupérer les messages d'une conversation
 router.get('/:conversationId/messages', checkRole(['pet-owner', 'vet']), getMessagesInConversation);
 
-// ✅ Envoyer un nouveau message
-router.post('/:conversationId/messages', checkRole(['pet-owner', 'vet']), sendMessage);
+// La route d'envoi de message utilise maintenant le middleware 'upload' importé
+// Assurez-vous que le champ 'file' dans FormData correspond à 'upload.single('file')'
+router.post(
+  '/:conversationId/messages',
+  checkRole(['pet-owner', 'vet']),
+  upload.single('file'), // 'file' est le nom du champ dans le FormData du frontend
+  sendMessage
+);
 
-// ✅ Marquer comme lu
 router.put('/:messageId/read', checkRole(['pet-owner', 'vet']), markMessageAsRead);
 
 module.exports = router;

@@ -1,48 +1,80 @@
-// backend/routes/petRoute.js
 const express = require("express");
-const router = express.Router();
-const petController = require("../controllers/petController");
+const {
+  addPet,
+  updatePet,
+  deletePet,
+  getPetsByOwner,
+  getAllPets,
+  getPetById,
+  getPetCountByOwner,
+  getTotalPetCount // <-- Updated: Import the new handler for total pet count
+} = require("../controllers/petController");
 const { authMiddleware, checkRole } = require("../middleware/authMiddleware");
-const upload = require("../middleware/upload"); // import de multer
+const upload = require("../middleware/upload"); // Assurez-vous d'avoir ce middleware pour la gestion des fichiers
 
-// Ajouter un animal avec upload d'image
-router.post(
-  "/ajoutPet",
-  authMiddleware,
-  upload.single("image"), // 'image' est le nom du champ de fichier dans le FormData du frontend
-  petController.addPet
-);
+const router = express.Router();
 
-// Modifier un animal avec image (optionnel)
-router.put(
-  "/:id", // Chemin RESTful pour la modification
-  authMiddleware,
-  upload.single("image"),
-  petController.updatePet
-);
+// Routes pour les propriétaires d'animaux (Pet Owners)
 
-// Lister les animaux du propriétaire connecté (PLUS SPÉCIFIQUE, DOIT VENIR AVANT /:id)
-router.get("/mine", authMiddleware, petController.getPetsByOwner);
+/**
+ * @route POST /api/pets/
+ * @desc Ajouter un nouvel animal
+ * @access Private (Owner Only)
+ */
+router.post("/ajoutPet", authMiddleware, checkRole(["pet-owner"]), upload.single("image"), addPet);
 
-router.get('/mine/count', authMiddleware, checkRole(["pet-owner", "admin", "vet"]), petController.getPetCountByOwner);
+/**
+ * @route PUT /api/pets/:id
+ * @desc Mettre à jour un animal existant par ID
+ * @access Private (Owner Only)
+ */
+router.put("/:id", authMiddleware, checkRole(["pet-owner"]), upload.single("image"), updatePet);
 
-// IMPORTANT : Lister tous les animaux (admin ou vet uniquement) - DOIT VENIR AVANT /:id
-router.get(
-  "/all",
-  authMiddleware,
-  checkRole(["admin", "vet"]), // S'assure que seul admin/vet peut accéder
-  petController.getAllPets
-);
+/**
+ * @route DELETE /api/pets/:id
+ * @desc Supprimer un animal par ID
+ * @access Private (Owner Only)
+ */
+router.delete("/:id", authMiddleware, checkRole(["pet-owner"]), deletePet);
 
-// Récupérer un animal par son ID (PLUS GÉNÉRALE, DOIT VENIR APRÈS /all et /mine)
-router.get("/:id", authMiddleware, petController.getPetById);
+/**
+ * @route GET /api/pets/mine
+ * @desc Lister les animaux du propriétaire connecté
+ * @access Private (Owner Only)
+ */
+router.get("/mine", authMiddleware, checkRole(["pet-owner"]), getPetsByOwner);
+
+/**
+ * @route GET /api/pets/mine/count
+ * @desc Obtenir le nombre d'animaux pour le propriétaire connecté
+ * @access Private (Owner Only)
+ */
+router.get("/mine/count", authMiddleware, checkRole(["pet-owner"]), getPetCountByOwner); // Route for owner's pet count
 
 
-// Supprimer un animal (propriétaire connecté)
-router.delete(
-  "/:id", // Chemin RESTful pour la suppression
-  authMiddleware,
-  petController.deletePet
-);
+// Routes pour les administrateurs et vétérinaires (Admins & Vets)
+
+/**
+ * @route GET /api/pets/all
+ * @desc Lister tous les animaux (pour Admin/Vet)
+ * @access Private (Admin, Vet)
+ */
+router.get("/all", authMiddleware, checkRole(["admin", "vet"]), getAllPets);
+
+/**
+ * @route GET /api/pets/:id
+ * @desc Récupérer un animal par son ID (accessible par Propriétaire, Admin, Vet)
+ * @access Private (Owner, Admin, Vet)
+ */
+router.get("/:id", authMiddleware, checkRole(["pet-owner", "vet", "admin"]), getPetById);
+
+/**
+ * @route GET /api/pets/total/count
+ * @desc Obtenir le nombre total d'animaux dans le système (pour Admin/Vet dashboard)
+ * @access Private (Admin, Vet)
+ */
+// Now directly use the new handler from the controller
+router.get("/total/count", authMiddleware, checkRole(["admin", "vet"]), getTotalPetCount);
+
 
 module.exports = router;

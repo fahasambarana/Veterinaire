@@ -1,22 +1,28 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import useAuth from "../hooks/useAuth";
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { CalendarX, Clock, CheckCircle, Plus, Edit, XCircle } from 'lucide-react'; // Added Plus, Edit, XCircle icons
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const UserAppointmentsList = ({ onAddAppointmentClick, onEditAppointmentClick }) => {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [error, setError] = useState(null);
   const [isLoadingAppointments, setIsLoadingAppointments] = useState(true);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [deletingAppointmentId, setDeletingAppointmentId] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
-  const [deleteSuccessMessage, setDeleteSuccessMessage] = useState(null); // Nouveau pour le message de succès après suppression
+  const [deleteSuccessMessage, setDeleteSuccessMessage] = useState(null);
 
-  const fetchAppointments = async () => {
-    if (loading) return; // Attendre que le chargement de l'utilisateur soit terminé
+  // Utility to clear messages after a timeout
+  const clearMessages = (setter) => {
+    setTimeout(() => setter(null), 5000); // Clear after 5 seconds
+  };
+
+  const fetchAppointments = useCallback(async () => {
+    if (authLoading) return;
 
     if (!user || (!user.id && !user._id)) {
       setError("Veuillez vous connecter pour voir vos rendez-vous.");
@@ -35,10 +41,8 @@ const UserAppointmentsList = ({ onAddAppointmentClick, onEditAppointmentClick })
         res = await axios.get(`${API_URL}/appointments/mine`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-      } else if (user.role === 'vet') {
-        // Si les vétérinaires ont aussi une liste "mine" d'appointments qu'ils gèrent
-        // res = await axios.get(`${API_URL}/appointments/vet/mine`, { headers: { Authorization: `Bearer ${token}` } });
-        setError("Les vétérinaires gèrent leurs rendez-vous via le calendrier de gestion. Cette page est pour les clients.");
+      } else if (user.role === 'vet' || user.role === 'admin') {
+        setError("Cette section est dédiée aux rendez-vous des propriétaires d'animaux. Les vétérinaires et administrateurs gèrent les rendez-vous via le calendrier général.");
         setIsLoadingAppointments(false);
         return;
       } else {
@@ -47,7 +51,6 @@ const UserAppointmentsList = ({ onAddAppointmentClick, onEditAppointmentClick })
         return;
       }
 
-      // Filtrer les rendez-vous annulés si le backend les renvoie
       const activeAppointments = res.data.filter(app => app.status !== 'annulé');
       const sortedAppointments = activeAppointments.sort((a, b) => new Date(b.date) - new Date(a.date));
       setAppointments(sortedAppointments);
@@ -55,15 +58,15 @@ const UserAppointmentsList = ({ onAddAppointmentClick, onEditAppointmentClick })
     } catch (err) {
       console.error("Erreur lors du chargement des rendez-vous:", err.response?.data || err.message);
       setError(`Échec du chargement des rendez-vous: ${err.response?.data?.message || err.message}`);
+      clearMessages(setError);
     } finally {
       setIsLoadingAppointments(false);
     }
-  };
+  }, [user, authLoading]);
 
   useEffect(() => {
-    // Déclenche le rechargement des rendez-vous chaque fois que l'utilisateur ou le statut de chargement change
     fetchAppointments();
-  }, [user, loading]); // Dépendances importantes
+  }, [fetchAppointments]);
 
   const handleEdit = (appointmentId) => {
     if (onEditAppointmentClick) {
@@ -74,45 +77,57 @@ const UserAppointmentsList = ({ onAddAppointmentClick, onEditAppointmentClick })
   };
 
   const handleDelete = async (appointmentId) => {
-    if (window.confirm("Êtes-vous sûr de vouloir annuler ce rendez-vous ? Cette action est irréversible.")) {
-      setIsDeleting(true);
-      setDeleteError(null);
-      setDeleteSuccessMessage(null); // Réinitialiser le message de succès précédent
+    if (!window.confirm("Êtes-vous sûr de vouloir annuler ce rendez-vous ? Cette action est irréversible.")) {
+      return;
+    }
 
-      try {
-        const token = localStorage.getItem("token");
-        // L'appel DELETE doit être envoyé pour informer le backend de l'annulation/suppression
-        await axios.delete(`${API_URL}/appointments/${appointmentId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+    setDeletingAppointmentId(appointmentId);
+    setDeleteError(null);
+    setDeleteSuccessMessage(null);
 
-        // Après l'opération backend réussie, RECHARGER les rendez-vous
-        // Cela garantira que la liste affichée est en phase avec la base de données.
-        await fetchAppointments();
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(`${API_URL}/appointments/${appointmentId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-        setDeleteSuccessMessage("Rendez-vous annulé avec succès !");
-        // Disparaître le message de succès après quelques secondes
-        setTimeout(() => setDeleteSuccessMessage(null), 3000);
+      setAppointments(prevApps => prevApps.filter(app => app._id !== appointmentId));
 
-      } catch (err) {
-        console.error("Erreur lors de l'annulation du rendez-vous :", err.response?.data || err.message);
-        const errorMessage = `Échec de l'annulation: ${err.response?.data?.message || err.message}`;
-        setDeleteError(errorMessage);
-        // Disparaître le message d'erreur après quelques secondes
-        setTimeout(() => setDeleteError(null), 5000);
-      } finally {
-        setIsDeleting(false);
-      }
+      setDeleteSuccessMessage("Rendez-vous annulé avec succès !");
+      clearMessages(setDeleteSuccessMessage);
+
+    } catch (err) {
+      console.error("Erreur lors de l'annulation du rendez-vous :", err.response?.data || err.message);
+      const errorMessage = `Échec de l'annulation: ${err.response?.data?.message || err.message}`;
+      setDeleteError(errorMessage);
+      clearMessages(setDeleteError);
+      fetchAppointments();
+    } finally {
+      setDeletingAppointmentId(null);
     }
   };
 
-  if (loading || isLoadingAppointments) {
-    return <div className="text-center py-8 text-gray-700">Chargement des rendez-vous...</div>;
+  // Spinner Component
+  const Spinner = () => (
+    <div className="flex justify-center items-center">
+      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-teal-600"></div>
+    </div>
+  );
+
+  // Global Loading State
+  if (authLoading || isLoadingAppointments) {
+    return (
+      <div className="text-center py-12 text-gray-700 max-w-lg mx-auto my-8">
+        <Spinner />
+        <p className="mt-4 text-lg">Chargement des rendez-vous...</p>
+      </div>
+    );
   }
 
+  // Global Error State
   if (error) {
     return (
-      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 mx-auto mt-8 max-w-lg animate-fade-in-down" role="alert">
         <strong className="font-bold">Erreur :</strong>
         <span className="block sm:inline"> {error}</span>
       </div>
@@ -120,38 +135,41 @@ const UserAppointmentsList = ({ onAddAppointmentClick, onEditAppointmentClick })
   }
 
   return (
-    <div className="p-6 bg-white rounded-xl shadow-lg border border-gray-100 max-w-6xl mx-auto my-8">
+    <div className="p-6 bg-white rounded-xl mt-[-10px] max-w-6xl mx-auto my-8">
       <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
         <h2 className="text-3xl font-extrabold text-teal-800">Mes Rendez-vous</h2>
         {user && user.role === 'pet-owner' && (
           <button
             onClick={onAddAppointmentClick}
-            className="px-8 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-lg shadow-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-opacity-75"
+            className="px-8 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-opacity-75 flex items-center justify-center gap-2"
           >
-            Ajouter un rendez-vous
+            <Plus className="w-5 h-5" /> Ajouter un rendez-vous
           </button>
         )}
       </div>
 
+      {/* Success and Error Messages */}
       {deleteSuccessMessage && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4 animate-fade-in-down" role="alert">
           <strong className="font-bold">Succès :</strong>
           <span className="block sm:inline"> {deleteSuccessMessage}</span>
         </div>
       )}
 
       {deleteError && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 animate-fade-in-down" role="alert">
           <strong className="font-bold">Erreur d'annulation :</strong>
           <span className="block sm:inline"> {deleteError}</span>
         </div>
       )}
 
+      {/* Empty State */}
       {appointments.length === 0 ? (
-        <div className="text-center text-gray-600 py-12 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-          <p className="text-lg mb-4">Aucun rendez-vous trouvé pour le moment.</p>
+        <div className="text-center text-gray-600 py-12 bg-gray-50 rounded-lg border border-dashed border-gray-300 flex flex-col items-center justify-center">
+          <CalendarX className="w-16 h-16 text-gray-400 mb-4" />
+          <p className="text-lg mb-4 font-medium">Aucun rendez-vous trouvé pour le moment.</p>
           {user && user.role === 'pet-owner' && (
-             <p className="text-md">Cliquez sur le bouton "Ajouter un rendez-vous" ci-dessus pour en prendre un.</p>
+             <p className="text-md">Cliquez sur le bouton "<span className="font-semibold text-teal-700">Ajouter un rendez-vous</span>" ci-dessus pour en prendre un.</p>
           )}
         </div>
       ) : (
@@ -159,7 +177,8 @@ const UserAppointmentsList = ({ onAddAppointmentClick, onEditAppointmentClick })
           {appointments.map((appointment) => (
             <div
               key={appointment._id}
-              className={`bg-white p-6 rounded-lg shadow-md border border-teal-100 hover:shadow-lg transition-shadow duration-200 flex flex-col justify-between`}
+              className={`bg-white p-6 rounded-lg shadow-md border border-teal-100 hover:shadow-xl transition-all duration-300 ease-in-out flex flex-col justify-between
+                ${deletingAppointmentId === appointment._id ? 'opacity-70 grayscale' : ''} `}
             >
               <div>
                 <p className="text-xl font-bold text-teal-800 mb-3">
@@ -178,33 +197,44 @@ const UserAppointmentsList = ({ onAddAppointmentClick, onEditAppointmentClick })
                     <span className="font-semibold">Animal :</span> {appointment.petId.name || 'Non spécifié'} ({appointment.petId.species || 'Inconnu'})
                   </p>
                 )}
-                <p className={`font-bold text-sm mt-3 ${
+                <p className={`font-bold text-sm mt-3 flex items-center gap-1 ${
                     appointment.status === 'confirmé' ? 'text-green-600' :
                     appointment.status === 'en attente' ? 'text-yellow-600' :
-                    appointment.status === 'annulé' ? 'text-red-600' : 'text-gray-500' // 'annulé' ne devrait plus apparaître si bien filtré
+                    'text-gray-500'
                 }`}>
-                  Statut : {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                  Statut :
+                  {appointment.status === 'confirmé' && <CheckCircle className="w-4 h-4" />}
+                  {appointment.status === 'en attente' && <Clock className="w-4 h-4" />}
+                  <span className="ml-1">{appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}</span>
                 </p>
               </div>
 
               {/* Action Buttons */}
-              {user.role === 'pet-owner' && appointment.status !== 'annulé' && ( // Masquer les boutons si déjà annulé
+              {user.role === 'pet-owner' && appointment.status !== 'annulé' && (
                 <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end space-x-3">
-                  {appointment.status !== 'confirmé' && ( // Permettre la modification seulement si pas encore confirmé ou annulé
+                  {appointment.status !== 'confirmé' && (
                     <button
                       onClick={() => handleEdit(appointment._id)}
-                      className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm rounded-md shadow transition duration-200"
-                      disabled={isDeleting}
+                      className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm rounded-md shadow transition duration-200 transform hover:scale-105 flex items-center justify-center gap-2"
+                      disabled={deletingAppointmentId === appointment._id}
                     >
-                      Modifier
+                      <Edit className="w-4 h-4" /> Modifier
                     </button>
                   )}
                   <button
                     onClick={() => handleDelete(appointment._id)}
-                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded-md shadow transition duration-200"
-                    disabled={isDeleting}
+                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded-md shadow transition duration-200 transform hover:scale-105 flex items-center justify-center gap-2"
+                    disabled={deletingAppointmentId === appointment._id}
                   >
-                    {isDeleting ? 'Annulation...' : 'Annuler'}
+                    {deletingAppointmentId === appointment._id ? (
+                      <>
+                        <Spinner /> Annulation...
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="w-4 h-4" /> Annuler
+                      </>
+                    )}
                   </button>
                 </div>
               )}

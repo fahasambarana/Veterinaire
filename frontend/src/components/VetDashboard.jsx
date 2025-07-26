@@ -1,18 +1,156 @@
-import { CalendarHeart, ClipboardList, Stethoscope, User2 } from "lucide-react";
+// frontend/src/pages/VetDashboard.jsx
+import React, { useEffect, useState, useCallback } from "react";
+import axios from "axios";
+import {
+  CalendarHeart,
+  ClipboardList,
+  Stethoscope,
+  Users, // Changed from User2 to Users for general clients/owners
+  Clock, // Icône pour les rendez-vous
+  FileText, // Icône pour les consultations
+  Loader2, // Icône pour le chargement
+  PlusCircle, // Icône pour l'état vide
+} from "lucide-react";
+
 import DashboardCard from "../components/DashboardCard";
-import LayoutSidebar from "./LayoutSidebar";
-import DisponibiliteCalendar from "../components/DisponibiliteCalendar";
+import LayoutSidebar from "../components/LayoutSidebar"; // Adjusted path to components/
+import DisponibiliteCalendar from "../components/DisponibiliteCalendar"; // Assurez-vous que ce chemin est correct
 import useAuth from "../hooks/useAuth";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const VetDashboard = () => {
-  const { user } = useAuth();
-  console.log("👤 user dans VetDashboard :", user);
+  const { user, loading: authLoading } = useAuth();
+  const [loadingData, setLoadingData] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  if (!user) {
+  // States pour les données dynamiques
+  const [todayConsultationsCount, setTodayConsultationsCount] = useState(0);
+  const [totalPatientsCount, setTotalPatientsCount] = useState(0); // Total des animaux suivis (tous les animaux du système pour le dashboard admin/vet)
+  const [upcomingAppointments, setUpcomingAppointments] = useState([]);
+  const [recentConsultations, setRecentConsultations] = useState([]);
+  const [totalClientsCount, setTotalClientsCount] = useState(0); // Total des propriétaires suivis
+
+  // Utility to clear messages after a timeout
+  const clearMessages = (setter) => {
+    setTimeout(() => setter(null), 5000); // Clear after 5 seconds
+  };
+
+  const fetchData = useCallback(async () => {
+    if (authLoading || !user) return; // Attendre que l'authentification soit prête
+
+    setLoadingData(true);
+    setErrorMessage("");
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setErrorMessage("Utilisateur non authentifié. Veuillez vous reconnecter.");
+      setLoadingData(false);
+      clearMessages(setErrorMessage);
+      return;
+    }
+
+    try {
+      // --- Requêtes API pour les données du Dashboard ---
+
+      // 1. Consultations aujourd'hui
+      // Route: GET /api/consultations/all
+      // Filtrage par date sera fait côté client si le backend ne le gère pas directement sur /all
+      const consultationsAllRes = await axios.get(
+        `${API_URL}/consultations/all`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+
+      const consultationsToday = consultationsAllRes.data.filter(
+        (consultation) => {
+          const consultDate = new Date(consultation.date || consultation.createdAt); // Use date or createdAt
+          return consultDate >= today && consultDate < tomorrow;
+        }
+      );
+      setTodayConsultationsCount(consultationsToday.length);
+
+
+      // 2. Dossiers patients (total des animaux dans le système)
+      // Route: GET /api/pets/total/count
+      const petsCountRes = await axios.get(`${API_URL}/pets/total/count`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setTotalPatientsCount(petsCountRes.data.totalPets || 0);
+
+
+      // 3. Rendez-vous futurs pour le vétérinaire connecté
+      // Route: GET /api/appointments/mine (gère le rôle 'vet' côté backend)
+      const upcomingAppointmentsRes = await axios.get(`${API_URL}/appointments/mine`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const futureAppointments = upcomingAppointmentsRes.data.filter(
+          (app) => new Date(app.date) > new Date() && app.status !== "annulé"
+      ).sort((a, b) => new Date(a.date) - new Date(b.date));
+      setUpcomingAppointments(futureAppointments);
+
+
+      // 4. Propriétaires suivis (total des clients)
+      // Route: GET /api/users/countClients
+      const clientsCountRes = await axios.get(`${API_URL}/users/countClients`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setTotalClientsCount(clientsCountRes.data.totalClients || 0);
+
+
+      // 5. Consultations récentes (les 5 dernières)
+      // Route: GET /api/consultations/all
+      // Tri et limite côté client
+      const recentConsultationsAllRes = await axios.get(`${API_URL}/consultations/all`, {
+          headers: { Authorization: `Bearer ${token}` },
+      });
+      const sortedRecentConsultations = recentConsultationsAllRes.data
+        .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt)) // Sort by date or createdAt
+        .slice(0, 5); // Get top 5
+      setRecentConsultations(sortedRecentConsultations);
+
+
+    } catch (err) {
+      console.error("Erreur lors du chargement des données du tableau de bord vétérinaire:", err.response?.data?.message || err.message, err);
+      setErrorMessage(
+        err.response?.data?.message || "Erreur lors du chargement des données du tableau de bord."
+      );
+      clearMessages(setErrorMessage);
+    } finally {
+      setLoadingData(false);
+    }
+  }, [user, authLoading]); // Dépendances pour recharger les données
+
+  useEffect(() => {
+    if (user?.role === "vet" || user?.role === "admin") {
+      fetchData();
+    }
+  }, [fetchData, user]); // Depend on fetchData and user
+
+  // Global loading for initial user authentication check or dashboard data
+  if (authLoading || loadingData) {
     return (
       <LayoutSidebar>
-        <div className="text-center text-gray-600 mt-20">
-          Chargement du tableau de bord...
+        <div className="flex flex-col justify-center items-center min-h-screen bg-gray-100 text-gray-700">
+          <Loader2 className="w-12 h-12 animate-spin text-teal-600 mb-4" />
+          <p className="text-xl font-semibold">Chargement du tableau de bord...</p>
+        </div>
+      </LayoutSidebar>
+    );
+  }
+
+  // Access control check
+  if (!user || (user.role !== "vet" && user.role !== "admin")) {
+    return (
+      <LayoutSidebar>
+        <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-lg text-center text-red-600 mx-auto mt-20 border border-red-200 animate-fade-in-down">
+          <h3 className="text-2xl font-bold mb-4">Accès Refusé</h3>
+          <p>Vous n'êtes pas autorisé à accéder à ce tableau de bord.</p>
         </div>
       </LayoutSidebar>
     );
@@ -20,73 +158,123 @@ const VetDashboard = () => {
 
   return (
     <LayoutSidebar>
-      <div className="">
-
+      <div className="min-h-screen p-8 bg-gray-100">
         {/* Titre principal */}
         <h1 className="text-4xl font-extrabold text-teal-700 mb-10 text-center">
           Tableau de bord Vétérinaire
         </h1>
 
+        {errorMessage && (
+          <div
+            className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-8 shadow-md animate-fade-in-down"
+            role="alert"
+          >
+            <strong className="font-bold">Erreur :</strong>
+            <span className="block sm:inline"> {errorMessage}</span>
+          </div>
+        )}
+
         {/* Cartes de résumé */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 mb-14">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-14">
           <DashboardCard
             title="Consultations aujourd'hui"
-            value="8"
+            value={todayConsultationsCount}
             icon={<Stethoscope className="text-white w-8 h-8" />}
             bgColor="bg-teal-600"
           />
           <DashboardCard
-            title="Dossiers patients"
-            value="145"
+            title="Total patients"
+            value={totalPatientsCount}
             icon={<ClipboardList className="text-white w-8 h-8" />}
-            bgColor="bg-teal-400"
-          />
-          <DashboardCard
-            title="Rendez-vous futurs"
-            value="25"
-            icon={<CalendarHeart className="text-white w-8 h-8" />}
             bgColor="bg-teal-500"
           />
           <DashboardCard
+            title="Rendez-vous futurs"
+            value={upcomingAppointments.length}
+            icon={<CalendarHeart className="text-white w-8 h-8" />}
+            bgColor="bg-blue-400"
+          />
+          <DashboardCard
             title="Propriétaires suivis"
-            value="110"
-            icon={<User2 className="text-white w-8 h-8" />}
-            bgColor="bg-pink-600"
+            value={totalClientsCount}
+            icon={<Users className="text-white w-8 h-8" />}
+            bgColor="bg-purple-400"
           />
         </div>
 
-        {/* Partie principale */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-
+        {/* Partie principale : Calendrier (colonne de gauche) + Listes (colonne de droite) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           {/* Section Calendrier */}
-          <div className="md:col-span-2 bg-white rounded-2xl shadow-md p-8">
+          <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl p-2 border border-gray-200 w-full lg:max-w-[1000px] h-[800px] overflow-auto">
+            <div className="flex justify-between items-center mb-6">
+            
+              
+            </div>
             <DisponibiliteCalendar veterinaireId={user?._id} />
           </div>
 
-          {/* Section Derniers dossiers ajoutés */}
-          <div className="bg-white rounded-2xl shadow-md p-8">
-            <h2 className="text-2xl font-bold text-teal-700 mb-6 text-center">Derniers dossiers</h2>
-            <ul className="space-y-4 text-gray-700">
-              <li className="flex items-center justify-between border-b pb-2">
-                <span>Charlie | Labrador</span>
-                <span className="text-sm text-gray-400">28/04/2025</span>
-              </li>
-              <li className="flex items-center justify-between border-b pb-2">
-                <span>Simba | Chat Européen</span>
-                <span className="text-sm text-gray-400">27/04/2025</span>
-              </li>
-              <li className="flex items-center justify-between border-b pb-2">
-                <span>Rocky | Bouledogue</span>
-                <span className="text-sm text-gray-400">26/04/2025</span>
-              </li>
-            </ul>
-            <div className="flex justify-center mt-6">
-              <button className="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded-lg">
-                Voir tout
-              </button>
+          {/* Colonne de droite: Prochains Rendez-vous & Consultations Récentes */}
+          <div className="lg:col-span-1 space-y-10">
+            {/* Section Prochains Rendez-vous */}
+            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
+              <h2 className="text-2xl font-bold text-teal-700 mb-6 flex items-center">
+                <Clock className="w-6 h-6 mr-3 text-blue-500" /> Prochains Rendez-vous
+              </h2>
+              {upcomingAppointments.length > 0 ? (
+                <ul className="space-y-4">
+                  {upcomingAppointments.slice(0, 5).map((appointment) => ( // Afficher les 5 prochains
+                    <li key={appointment._id} className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition duration-200">
+                      <p className="font-semibold text-lg text-gray-800">
+                        {appointment.petId?.name || "Animal Inconnu"}
+                      </p>
+                      <p className="text-gray-600 text-sm">
+                        Date: {format(new Date(appointment.date), "dd MMMM yyyy à HH:mm", { locale: fr })}
+                      </p>
+                      <p className="text-gray-600 text-sm">
+                        Raison: {appointment.reason}
+                      </p>
+                      {/* Ajoutez un bouton pour voir les détails si nécessaire */}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="text-center text-gray-500 py-4 flex flex-col items-center">
+                  <PlusCircle className="w-10 h-10 text-gray-400 mb-2" />
+                  <p className="italic">Aucun rendez-vous à venir.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Section Consultations Récentes */}
+            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
+              <h2 className="text-2xl font-bold text-teal-700 mb-6 flex items-center">
+                <FileText className="w-6 h-6 mr-3 text-green-500" /> Consultations Récentes
+              </h2>
+              {recentConsultations.length > 0 ? (
+                <ul className="space-y-4">
+                  {recentConsultations.map((consultation) => (
+                    <li key={consultation._id} className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition duration-200">
+                      <p className="font-semibold text-lg text-gray-800">
+                        {consultation.petId?.name || "Animal Inconnu"}
+                      </p>
+                      <p className="text-gray-600 text-sm">
+                        Date: {format(new Date(consultation.date || consultation.createdAt), "dd MMMM yyyy", { locale: fr })}
+                      </p>
+                      <p className="text-gray-600 text-sm truncate">
+                        Diagnostic: {consultation.diagnosis || "N/A"}
+                      </p>
+                      {/* Ajoutez un bouton pour voir les détails si nécessaire */}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="text-center text-gray-500 py-4 flex flex-col items-center">
+                  <PlusCircle className="w-10 h-10 text-gray-400 mb-2" />
+                  <p className="italic">Aucune consultation récente.</p>
+                </div>
+              )}
             </div>
           </div>
-
         </div>
       </div>
     </LayoutSidebar>

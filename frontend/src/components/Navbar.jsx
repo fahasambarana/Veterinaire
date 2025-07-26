@@ -1,7 +1,7 @@
 import { CalendarCheck, Home, LogOut, Menu, MessageSquare, PawPrint, Settings, User, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import Logo from "../assets/Logo3.png";
+import Logo from "../assets/LogoNgeza.png";
 import { useAuth } from "../context/AuthContext"; // adjust if needed
 import LogoutModal from "./LogoutModal"; // Import the modal component
 

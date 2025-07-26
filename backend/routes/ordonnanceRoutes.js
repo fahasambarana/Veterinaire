@@ -49,5 +49,7 @@ router.delete(
   checkRole(['vet', 'admin']),
   ordonnanceController.deleteOrdonnance
 );
+router.get("/ordonnances/:id", checkRole(['vet', 'admin', 'pet-owner']), ordonnanceController.getOrdonnanceById);
+
 
 module.exports = router;

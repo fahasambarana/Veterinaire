@@ -1,3 +1,4 @@
+// frontend/src/components/ConversationList.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom'; // Si vous utilisez React Router
@@ -70,7 +71,9 @@ const ConversationList = ({ onSelectConversation }) => {
       {conversations.length === 0 ? (
         <p>Vous n'avez pas encore de conversations.</p>
       ) : (
-        <ul>
+        // Added max-h-[calc(3*80px)] to limit height to roughly 3 items (each item is about 80px tall including padding)
+        // and overflow-y-auto to enable scrolling.
+        <ul className="max-h-[240px] overflow-y-auto custom-scrollbar">
           {conversations.map((conv) => {
             // Déterminer l'autre participant (pas l'utilisateur connecté)
             const otherParticipant = conv.participants.find(

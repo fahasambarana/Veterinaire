@@ -4,6 +4,11 @@ const consultationSchema = new mongoose.Schema({
   vetId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   petId: { type: mongoose.Schema.Types.ObjectId, ref: "Pet", required: true },
   appointmentId: { type: mongoose.Schema.Types.ObjectId, ref: "Appointment" },
+  ownerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
   date: { type: Date, default: Date.now },
   weight: Number,
   temperature: Number,

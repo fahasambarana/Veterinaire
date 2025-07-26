@@ -14,15 +14,24 @@ const messageSchema = new mongoose.Schema(
     },
     content: {
       type: String,
-      required: true,
+      required: function() {
+        
+        // Sinon (si messageType n'est pas 'text' OU s'il y a un fileUrl), content n'est pas requis.
+        return this.messageType === 'text' && !this.fileUrl;
+      },
     },
     messageType: {
       type: String,
       enum: ["text", "image", "file"],
       default: "text",
+      required: true, // messageType devrait toujours être défini
     },
     fileUrl: {
       type: String,
+      // FIX: Rendre 'fileUrl' conditionnellement obligatoire si le message n'est PAS de type 'text'
+      required: function() {
+        return this.messageType !== 'text';
+      },
     },
     readBy: [
       {

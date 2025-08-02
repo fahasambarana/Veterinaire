@@ -118,9 +118,7 @@ const AppointmentCalendar = () => {
 
   return (
     <div className="bg-white p-6 rounded-xl relative">
-      <h2 className="text-2xl font-bold mb-4 text-teal-700">
-        Calendrier des rendez-vous
-      </h2>
+      
 
       <FullCalendar
         plugins={[dayGridPlugin, interactionPlugin]}

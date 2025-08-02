@@ -1,29 +1,28 @@
-// src/components/ConsultationForm.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import useAuth from "../hooks/useAuth";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
-import LayoutSidebar from "../components/LayoutSidebar"; // Assuming you have a LayoutSidebar component
+import LayoutSidebar from "../components/LayoutSidebar";
 import {
   Weight,
   Thermometer,
-  Stethoscope, // Changed from Microscope for diagnosis, more fitting
-  FileText, // For notes
-  Pill, // For treatment
-  CalendarDays, // For prefill date display
-  Info, // For prefill reason display
-  PawPrint, // For pet name display
-  CheckCircle, // For success message
-  XCircle, // For error message
-  Loader2, // For loading/submitting states
-  ArrowLeft, // For back button
-  HeartPulse, // For symptoms
-} from "lucide-react"; // Importation d'icônes Lucide
+  Stethoscope,
+  FileText,
+  Pill,
+  CalendarDays,
+  Info,
+  PawPrint,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  ArrowLeft,
+  HeartPulse,
+} from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const ConsultationForm = () => {
-  const { appointmentId: paramAppointmentId } = useParams(); // Get appointmentId from URL if present
+  const { appointmentId: paramAppointmentId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -31,26 +30,26 @@ const ConsultationForm = () => {
   // State for form fields
   const [weight, setWeight] = useState("");
   const [temperature, setTemperature] = useState("");
-  const [symptoms, setSymptoms] = useState(""); // Now stores selected symptom
-  const [diagnosis, setDiagnosis] = useState(""); // Now stores selected diagnosis
-  const [treatment, setTreatment] = useState(""); // Now stores selected treatment
+  const [symptoms, setSymptoms] = useState("");
+  const [diagnosis, setDiagnosis] = useState("");
+  const [treatment, setTreatment] = useState("");
   const [notes, setNotes] = useState("");
 
-  // State for pre-filled/essential data
+  // State for pre-filled/essential data from the appointment
   const [consultationPetId, setConsultationPetId] = useState(null);
   const [consultationVetId, setConsultationVetId] = useState(null);
-  const [consultationAppointmentId, setConsultationAppointmentId] = useState(null); // Explicitly store appointment ID
+  const [consultationAppointmentId, setConsultationAppointmentId] = useState(null);
   const [petName, setPetName] = useState("");
   const [prefillDate, setPrefillDate] = useState("");
   const [prefillReason, setPrefillReason] = useState("");
 
-  // UI states
+  // UI states for user feedback
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(true);
 
-  // Predefined options for Symptoms and Diagnosis
+  // Predefined options for select inputs
   const symptomsOptions = [
     { value: "", label: "Sélectionnez un symptôme" },
     { value: "toux", label: "Toux" },
@@ -81,7 +80,6 @@ const ConsultationForm = () => {
     { value: "autre", label: "Autre (préciser dans les notes)" },
   ];
 
-  // NEW: Predefined options for Treatment
   const treatmentOptions = [
     { value: "", label: "Sélectionnez un traitement" },
     { value: "antibiotiques", label: "Antibiotiques" },
@@ -99,9 +97,10 @@ const ConsultationForm = () => {
 
   // Utility to clear messages after a timeout
   const clearMessages = useCallback((setter) => {
-    setTimeout(() => setter(null), 5000); // Clear after 5 seconds
+    setTimeout(() => setter(null), 5000);
   }, []);
 
+  // Effect hook to load appointment details on component mount
   useEffect(() => {
     const loadConsultationData = async () => {
       setIsLoadingDetails(true);
@@ -111,23 +110,24 @@ const ConsultationForm = () => {
       if (!token) {
         setError("Authentification requise pour charger les détails.");
         setIsLoadingDetails(false);
-        navigate('/login');
+        navigate("/login");
         return;
       }
 
-      // Prioritize data from location.state (passed from AppointmentCalendar)
-      if (location.state && location.state.appointmentId && location.state.petId && location.state.vetId) {
-        setConsultationAppointmentId(location.state.appointmentId);
-        setConsultationPetId(location.state.petId);
-        setConsultationVetId(location.state.vetId);
-        setPetName(location.state.prefillPetName || "Animal Inconnu");
-        setPrefillDate(location.state.prefillDate || "");
-        setPrefillReason(location.state.prefillReason || "");
+      // Priority 1: Use data passed via `location.state` (from appointment list)
+      if (location.state && location.state.appointmentId) {
+        const { appointmentId, petId, vetId, prefillPetName, prefillDate, prefillReason } = location.state;
+        setConsultationAppointmentId(appointmentId);
+        setConsultationPetId(petId);
+        setConsultationVetId(vetId);
+        setPetName(prefillPetName || "Animal Inconnu");
+        setPrefillDate(prefillDate || "");
+        setPrefillReason(prefillReason || "");
         setIsLoadingDetails(false);
         return;
       }
 
-      // If no data from state, try to fetch from API using paramAppointmentId
+      // Priority 2: Fetch data from the API using the `appointmentId` from the URL params
       if (paramAppointmentId) {
         try {
           const res = await axios.get(`${API_URL}/appointments/${paramAppointmentId}`, {
@@ -139,8 +139,8 @@ const ConsultationForm = () => {
           setConsultationPetId(rdv.petId?._id?.toString() || rdv.petId?.toString() || null);
           setConsultationVetId(rdv.vetId?._id?.toString() || rdv.vetId?.toString() || null);
           setPetName(rdv.petId?.name || "Animal Inconnu");
-          setPrefillDate(new Date(rdv.date).toISOString().split('T')[0]);
-          setPrefillReason(rdv.reason);
+          setPrefillDate(rdv.date ? new Date(rdv.date).toISOString() : new Date().toISOString()); // Utiliser la date du rdv ou la date actuelle
+          setPrefillReason(rdv.reason || "");
 
         } catch (err) {
           console.error("[ConsultationForm] Error fetching appointment details:", err.response?.data || err.message);
@@ -149,14 +149,16 @@ const ConsultationForm = () => {
           setIsLoadingDetails(false);
         }
       } else {
+        // No appointmentId in state or params
         setError("ID du rendez-vous manquant. Impossible de charger le formulaire.");
         setIsLoadingDetails(false);
       }
     };
 
     loadConsultationData();
-  }, [paramAppointmentId, location.state, navigate]); // Added navigate to dependencies
+  }, [paramAppointmentId, location.state, navigate]);
 
+  // Form submission handler
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -171,39 +173,41 @@ const ConsultationForm = () => {
         return;
     }
 
-    // Use the IDs from state, which are either from location.state or fetched
     const finalVetId = consultationVetId;
     const finalPetId = consultationPetId;
     const finalAppointmentId = consultationAppointmentId;
-
 
     if (!finalPetId || !finalVetId || !finalAppointmentId) {
         setError("Informations essentielles (animal, vétérinaire, rendez-vous) manquantes. Veuillez retourner à la page des rendez-vous et réessayer, ou recharger la page.");
         setIsSubmitting(false);
         return;
     }
-    // Validate selected options for symptoms and diagnosis
-    if (!symptoms.trim() || symptoms === "") {
-        setError("Veuillez sélectionner au moins un symptôme.");
+
+    // Client-side validation for required fields
+    if (!symptoms.trim()) {
+        setError("Veuillez sélectionner un symptôme.");
         setIsSubmitting(false);
+        clearMessages(setError);
         return;
     }
-    if (!diagnosis.trim() || diagnosis === "") {
+    if (!diagnosis.trim()) {
         setError("Veuillez sélectionner un diagnostic.");
         setIsSubmitting(false);
+        clearMessages(setError);
         return;
     }
-    // Treatment is optional, no validation needed here for empty string
 
+    // Création du payload avec toutes les informations requises, y compris la date
     const payload = {
       vetId: finalVetId,
       petId: finalPetId,
       appointmentId: finalAppointmentId,
+      date: prefillDate, // CORRECTION : Ajout de la date dans le payload
       weight: weight !== "" ? parseFloat(weight) : null,
       temperature: temperature !== "" ? parseFloat(temperature) : null,
-      symptoms, // Now directly the selected value
-      diagnosis, // Now directly the selected value
-      treatment, // Now directly the selected value
+      symptoms,
+      diagnosis,
+      treatment,
       notes,
     };
 
@@ -226,7 +230,7 @@ const ConsultationForm = () => {
       setError(err.response?.data?.message || "Erreur lors de l'enregistrement de la consultation. Veuillez réessayer.");
       clearMessages(setError);
     } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -286,7 +290,7 @@ const ConsultationForm = () => {
           {/* Display pre-filled appointment details */}
           <div className="bg-teal-50 border-l-4 border-teal-500 text-teal-800 p-4 mb-6 rounded-lg shadow-sm">
               <p className="font-semibold mb-2 flex items-center"><PawPrint className="w-5 h-5 mr-2" /> Animal: {petName}</p>
-              <p className="flex items-center"><CalendarDays className="w-5 h-5 mr-2" /> Date du rendez-vous: {prefillDate}</p>
+              <p className="flex items-center"><CalendarDays className="w-5 h-5 mr-2" /> Date du rendez-vous: {prefillDate ? prefillDate.split('T')[0] : "Date inconnue"}</p>
               <p className="flex items-center"><Info className="w-5 h-5 mr-2" /> Motif du rendez-vous: {prefillReason}</p>
           </div>
 
@@ -343,10 +347,10 @@ const ConsultationForm = () => {
           <div className="mb-6">
             <label htmlFor="symptoms" className="block text-sm font-medium text-gray-700 mb-1">Symptômes <span className="text-red-500">*</span></label>
             <div className="relative flex items-center border border-gray-300 rounded-md shadow-sm focus-within:ring-2 focus-within:ring-teal-500 focus-within:border-teal-500 transition-all duration-200">
-              <HeartPulse className="w-5 h-5 text-gray-400 ml-3 flex-shrink-0" /> {/* Icon for symptoms */}
+              <HeartPulse className="w-5 h-5 text-gray-400 ml-3 flex-shrink-0" />
               <select
                 id="symptoms"
-                className="flex-grow p-2.5 bg-transparent rounded-r-md outline-none appearance-none cursor-pointer" // appearance-none for custom arrow
+                className="flex-grow p-2.5 bg-transparent rounded-r-md outline-none appearance-none cursor-pointer"
                 value={symptoms}
                 onChange={(e) => setSymptoms(e.target.value)}
                 required
@@ -355,7 +359,6 @@ const ConsultationForm = () => {
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
-              {/* Custom arrow for select */}
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                 <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
               </div>
@@ -365,7 +368,7 @@ const ConsultationForm = () => {
           <div className="mb-6">
             <label htmlFor="diagnosis" className="block text-sm font-medium text-gray-700 mb-1">Diagnostic <span className="text-red-500">*</span></label>
             <div className="relative flex items-center border border-gray-300 rounded-md shadow-sm focus-within:ring-2 focus-within:ring-teal-500 focus-within:border-teal-500 transition-all duration-200">
-              <Stethoscope className="w-5 h-5 text-gray-400 ml-3 flex-shrink-0" /> {/* Icon for diagnosis */}
+              <Stethoscope className="w-5 h-5 text-gray-400 ml-3 flex-shrink-0" />
               <select
                 id="diagnosis"
                 className="flex-grow p-2.5 bg-transparent rounded-r-md outline-none appearance-none cursor-pointer"
@@ -377,14 +380,12 @@ const ConsultationForm = () => {
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
-              {/* Custom arrow for select */}
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                 <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
               </div>
             </div>
           </div>
 
-          {/* NEW: Treatment as a select option */}
           <div className="mb-6">
             <label htmlFor="treatment" className="block text-sm font-medium text-gray-700 mb-1">Traitement</label>
             <div className="relative flex items-center border border-gray-300 rounded-md shadow-sm focus-within:ring-2 focus-within:ring-teal-500 focus-within:border-teal-500 transition-all duration-200">
@@ -399,7 +400,6 @@ const ConsultationForm = () => {
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
-              {/* Custom arrow for select */}
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                 <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
               </div>
@@ -432,7 +432,7 @@ const ConsultationForm = () => {
             </button>
             <button
               type="button"
-              onClick={() => navigate('/appointments')} // Navigate back to appointments list
+              onClick={() => navigate('/appointments')}
               className="flex-1 bg-gray-400 hover:bg-gray-500 text-white font-semibold px-4 py-3 rounded-md shadow-md transition duration-150 ease-in-out flex items-center justify-center gap-2 transform hover:scale-105"
             >
               <ArrowLeft className="w-5 h-5" /> Retour

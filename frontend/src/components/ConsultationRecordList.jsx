@@ -1,4 +1,4 @@
-""// src/components/ConsultationRecordList.jsx
+// src/components/ConsultationRecordList.jsx
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -52,8 +52,13 @@ const ConsultationRecordList = () => {
           headers: { Authorization: `Bearer ${token}` },
         });
 
+        // Mise à jour de l'état avec les consultations récupérées
         setConsultations(res.data);
+        
+        // Log pour le débogage : affichez les données brutes reçues
+        console.log("Consultations récupérées :", res.data);
 
+        // Définir le nom de l'animal à afficher
         if (petId && petNameFromState) {
           setDisplayedPetName(petNameFromState);
         } else if (petId && res.data.length > 0 && res.data[0].petId?.name) {
@@ -167,40 +172,51 @@ const ConsultationRecordList = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
-                  {consultations.map((c) => (
-                    <tr key={c._id} className="hover:bg-teal-50 transition duration-150">
-                      <td className="px-6 py-4 text-sm text-gray-800">
-                        {c.date ? new Date(c.date).toLocaleDateString("fr-FR", {
+                  {consultations.map((c) => {
+                    // Log pour le débogage de la date de chaque consultation
+                    console.log(`Date brute pour consultation ${c._id}:`, c.date);
+                    
+                    const consultationDate = c.date ? new Date(c.date) : null;
+                    const isValidDate = consultationDate instanceof Date && !isNaN(consultationDate);
+                    const formattedDate = isValidDate
+                      ? consultationDate.toLocaleDateString("fr-FR", {
                           year: "numeric",
                           month: "short",
                           day: "numeric",
-                        }) : "-"}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                        {c.petId?.name || "Inconnu"}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-700">
-                        {c.vetId?.username || "Inconnu"}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-700">
-                        {c.weight !== null ? `${c.weight} kg` : "-"}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-700">
-                        {c.temperature !== null ? `${c.temperature} °C` : "-"}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-700 max-w-[250px] truncate" title={c.diagnosis}>
-                        {c.diagnosis}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <button
-                          onClick={() => handleViewOrEdit(c._id)}
-                          className="inline-flex items-center bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md transition transform hover:scale-105 shadow-sm"
-                        >
-                          <Eye className="w-4 h-4 mr-2" /> Voir/Modifier
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        })
+                      : "-";
+
+                    return (
+                      <tr key={c._id} className="hover:bg-teal-50 transition duration-150">
+                        <td className="px-6 py-4 text-sm text-gray-800">
+                          {formattedDate}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                          {c.petId?.name || "Inconnu"}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-700">
+                          {c.vetId?.username || "Inconnu"}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-700">
+                          {c.weight !== null ? `${c.weight} kg` : "-"}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-700">
+                          {c.temperature !== null ? `${c.temperature} °C` : "-"}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-700 max-w-[250px] truncate" title={c.diagnosis}>
+                          {c.diagnosis}
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          <button
+                            onClick={() => handleViewOrEdit(c._id)}
+                            className="inline-flex items-center bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md transition transform hover:scale-105 shadow-sm"
+                          >
+                            <Eye className="w-4 h-4 mr-2" /> Voir/Modifier
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

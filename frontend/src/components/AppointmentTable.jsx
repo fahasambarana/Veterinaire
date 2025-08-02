@@ -59,7 +59,10 @@ const AppointmentCalendar = () => {
         setUser(userWithId);
       } catch (err) {
         console.error("Erreur parsing user from localStorage:", err);
-        setGlobalMessage({ type: "error", text: "Erreur de chargement des informations utilisateur." });
+        setGlobalMessage({
+          type: "error",
+          text: "Erreur de chargement des informations utilisateur.",
+        });
         clearGlobalMessage();
       }
     }
@@ -73,14 +76,18 @@ const AppointmentCalendar = () => {
       );
       return;
     }
-    if (user || !loadingInitial) { // Ensure user is available or initial loading is done
+    if (user || !loadingInitial) {
+      // Ensure user is available or initial loading is done
       setLoadingAppointments(true); // Début du chargement des RDV
       try {
         const token = localStorage.getItem("token");
         if (!token) {
-          setGlobalMessage({ type: "error", text: "Pas de token d'authentification. Veuillez vous reconnecter." });
+          setGlobalMessage({
+            type: "error",
+            text: "Pas de token d'authentification. Veuillez vous reconnecter.",
+          });
           clearGlobalMessage();
-          navigate('/login');
+          navigate("/login");
           return;
         }
 
@@ -112,7 +119,12 @@ const AppointmentCalendar = () => {
           "Erreur fetch appointments :",
           error.response?.data || error.message
         );
-        setGlobalMessage({ type: "error", text: error.response?.data?.message || "Erreur lors du chargement des rendez-vous." });
+        setGlobalMessage({
+          type: "error",
+          text:
+            error.response?.data?.message ||
+            "Erreur lors du chargement des rendez-vous.",
+        });
         clearGlobalMessage();
       } finally {
         setLoadingAppointments(false); // Fin du chargement des RDV
@@ -122,7 +134,7 @@ const AppointmentCalendar = () => {
 
   useEffect(() => {
     if (!loadingInitial) {
-        fetchAppointments();
+      fetchAppointments();
     }
   }, [user, loadingInitial, fetchAppointments]); // Added fetchAppointments to dependencies
 
@@ -156,9 +168,12 @@ const AppointmentCalendar = () => {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        setGlobalMessage({ type: "error", text: "Vous n'êtes pas authentifié pour effectuer cette action." });
+        setGlobalMessage({
+          type: "error",
+          text: "Vous n'êtes pas authentifié pour effectuer cette action.",
+        });
         clearGlobalMessage();
-        navigate('/login');
+        navigate("/login");
         return;
       }
       await axios.put(
@@ -170,14 +185,22 @@ const AppointmentCalendar = () => {
       );
       setSelectedEvent((prev) => ({ ...prev, status }));
       fetchAppointments(); // Re-fetch to ensure data consistency
-      setGlobalMessage({ type: "success", text: "Statut du rendez-vous mis à jour avec succès !" });
+      setGlobalMessage({
+        type: "success",
+        text: "Statut du rendez-vous mis à jour avec succès !",
+      });
       clearGlobalMessage();
     } catch (error) {
       console.error(
         "Erreur updateStatus :",
         error.response?.data || error.message
       );
-      setGlobalMessage({ type: "error", text: error.response?.data?.message || "Erreur serveur lors de la mise à jour du statut." });
+      setGlobalMessage({
+        type: "error",
+        text:
+          error.response?.data?.message ||
+          "Erreur serveur lors de la mise à jour du statut.",
+      });
       clearGlobalMessage();
     } finally {
       setUpdatingStatus(false); // End status update loading
@@ -231,7 +254,9 @@ const AppointmentCalendar = () => {
     return (
       <div className="flex flex-col justify-center items-center min-h-[400px] text-gray-700 bg-gray-50 rounded-xl shadow-md mx-auto my-8">
         <Loader2 className="w-10 h-10 animate-spin mr-3 text-teal-600" />
-        <p className="mt-3 text-lg">Chargement des informations utilisateur...</p>
+        <p className="mt-3 text-lg">
+          Chargement des informations utilisateur...
+        </p>
       </div>
     );
   }
@@ -246,7 +271,9 @@ const AppointmentCalendar = () => {
   }
 
   return (
-    <div className="bg-white ml-64 p-6 rounded-xl shadow-xl border border-gray-100 w-[5/4]">
+    <div className="bg-white ml-[230px] p-6 rounded-xl shadow-xl border border-gray-100 w-[1110px] max-w-full overflow-hidden">
+      {" "}
+      {/* Added max-w-full and overflow-hidden */}
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 px-2">
         <h2 className="text-2xl font-bold text-teal-700 mb-4 sm:mb-0">
           Gestion des rendez-vous
@@ -266,9 +293,10 @@ const AppointmentCalendar = () => {
           <button
             onClick={() => setViewMode("calendar")}
             className={`px-5 py-2 rounded-lg font-medium transition duration-200 transform hover:scale-105 shadow-md
-              ${viewMode === "calendar"
-                ? "bg-teal-600 text-white"
-                : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+              ${
+                viewMode === "calendar"
+                  ? "bg-teal-600 text-white"
+                  : "bg-gray-200 text-gray-800 hover:bg-gray-300"
               }`}
           >
             Calendrier
@@ -276,16 +304,16 @@ const AppointmentCalendar = () => {
           <button
             onClick={() => setViewMode("table")}
             className={`px-5 py-2 rounded-lg font-medium transition duration-200 transform hover:scale-105 shadow-md
-              ${viewMode === "table"
-                ? "bg-teal-600 text-white"
-                : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+              ${
+                viewMode === "table"
+                  ? "bg-teal-600 text-white"
+                  : "bg-gray-200 text-gray-800 hover:bg-gray-300"
               }`}
           >
             Liste
           </button>
         </div>
       </div>
-
       {/* Global Success/Error Message Display */}
       {globalMessage.text && (
         <div
@@ -296,11 +324,12 @@ const AppointmentCalendar = () => {
           }`}
           role="alert"
         >
-          <strong className="font-bold">{globalMessage.type === "success" ? "Succès :" : "Erreur :"}</strong>
+          <strong className="font-bold">
+            {globalMessage.type === "success" ? "Succès :" : "Erreur :"}
+          </strong>
           <span className="block sm:inline"> {globalMessage.text}</span>
         </div>
       )}
-
       {loadingAppointments ? (
         <div className="flex justify-center items-center py-10">
           <Loader2 className="w-8 h-8 animate-spin mr-3 text-teal-600" />
@@ -320,29 +349,33 @@ const AppointmentCalendar = () => {
           className="shadow-md rounded-lg"
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-md animate-fade-in">
+        <div className="overflow-x-auto rounded-lg border border-gray-200 animate-fade-in">
           <table className="min-w-full divide-y divide-gray-200 table-auto">
             <thead className="bg-teal-700 text-white rounded-t-lg">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-bold uppercase ">
-                  <PawPrint className="w-4 h-4  mr-2 inline" /> Animal
+                <th className="px-4 py-3 text-left text-xs font-bold uppercase min-w-[120px] sm:min-w-[auto]">
+                  <PawPrint className="w-4 h-4 mr-2 inline" /> Animal
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-bold uppercase ">
-                  <CalendarDays className="w-4 h-4  mr-2 inline " /> Date RDV
+                <th className="px-4 py-3 text-left text-xs font-bold uppercase min-w-[150px] sm:min-w-[auto]">
+                  <CalendarDays className="w-4 h-4 mr-2 inline" /> Date RDV
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-bold uppercase ">
-                  <User className="w-4 h-4  mr-2 inline" /> Propriétaire
+                <th className="px-4 py-3 text-left text-xs font-bold uppercase hidden md:table-cell min-w-[120px] sm:min-w-[auto]">
+                  {" "}
+                  {/* Hidden on small, visible on medium+ */}
+                  <User className="w-4 h-4 mr-2 inline" /> Propriétaire
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-bold uppercase ">
-                  <Stethoscope className="w-4 h-4  mr-2 inline" /> Vétérinaire
+                <th className="px-4 py-3 text-left text-xs font-bold uppercase hidden lg:table-cell min-w-[120px] sm:min-w-[auto]">
+                  {" "}
+                  {/* Hidden on medium, visible on large+ */}
+                  <Stethoscope className="w-4 h-4 mr-2 inline" /> Vétérinaire
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-bold uppercase ">
-                  <ClipboardList className="w-4 h-4  mr-2 inline" /> Motif
+                <th className="px-4 py-3 text-left text-xs font-bold uppercase min-w-[150px] sm:min-w-[auto]">
+                  <ClipboardList className="w-4 h-4 mr-2 inline" /> Motif
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-bold uppercase min-w-[100px]">
-                  <CheckCircle className="w-4 h-4  mr-2 inline" /> Statut
+                <th className="px-4 py-3 text-left text-xs font-bold uppercase min-w-[100px] sm:min-w-[auto]">
+                  <CheckCircle className="w-4 h-4 mr-2 inline" /> Statut
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider min-w-[100px]">
+                <th className="px-4 py-3 text-left text-xs font-bold uppercase min-w-[80px] sm:min-w-[auto]">
                   Actions
                 </th>
               </tr>
@@ -357,13 +390,30 @@ const AppointmentCalendar = () => {
                   minute: "2-digit",
                 });
                 return (
-                  <tr key={e.id} className="hover:bg-teal-50 transition-colors duration-150 ease-in-out">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{e.extendedProps.petName}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{rdvDate}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{e.extendedProps.owner}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{e.extendedProps.vet}</td>
-                    <td className="px-6 py-4 text-sm text-gray-700 max-w-xs truncate" title={e.extendedProps.reason}>{e.extendedProps.reason}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                  <tr
+                    key={e.id}
+                    className="hover:bg-teal-50 transition-colors duration-150 ease-in-out"
+                  >
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {e.extendedProps.petName}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                      {rdvDate}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 hidden md:table-cell">
+                      {e.extendedProps.owner}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 hidden lg:table-cell">
+                      {e.extendedProps.vet}
+                    </td>
+                    <td
+                      className="px-4 py-3 text-sm text-gray-700 max-w-[150px] truncate sm:max-w-xs"
+                      title={e.extendedProps.reason}
+                    >
+                      {e.extendedProps.reason}
+                    </td>{" "}
+                    {/* Adjusted max-w */}
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeClasses(
                           e.extendedProps.status
@@ -372,7 +422,7 @@ const AppointmentCalendar = () => {
                         {e.extendedProps.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm">
                       <button
                         onClick={() =>
                           handleEventClick({
@@ -393,7 +443,10 @@ const AppointmentCalendar = () => {
               })}
               {sortedFilteredEvents.length === 0 && (
                 <tr>
-                  <td colSpan="7" className="text-center py-8 text-gray-500 text-lg italic">
+                  <td
+                    colSpan="7"
+                    className="text-center py-8 text-gray-500 text-lg italic"
+                  >
                     Aucun rendez-vous trouvé avec ce filtre.
                   </td>
                 </tr>
@@ -402,7 +455,6 @@ const AppointmentCalendar = () => {
           </table>
         </div>
       )}
-
       {selectedEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md border border-gray-200 transform scale-95 animate-scale-in relative">
@@ -419,23 +471,28 @@ const AppointmentCalendar = () => {
             <div className="space-y-3 text-gray-800">
               <p className="flex items-center">
                 <CalendarDays className="w-5 h-5 mr-3 text-teal-600 flex-shrink-0" />
-                <strong>Date du rendez-vous :</strong> <span className="ml-2">{selectedEvent.date}</span>
+                <strong>Date du rendez-vous :</strong>{" "}
+                <span className="ml-2">{selectedEvent.date}</span>
               </p>
               <p className="flex items-center">
                 <Stethoscope className="w-5 h-5 mr-3 text-blue-600 flex-shrink-0" />
-                <strong>Vétérinaire :</strong> <span className="ml-2">{selectedEvent.vet}</span>
+                <strong>Vétérinaire :</strong>{" "}
+                <span className="ml-2">{selectedEvent.vet}</span>
               </p>
               <p className="flex items-center">
                 <User className="w-5 h-5 mr-3 text-purple-600 flex-shrink-0" />
-                <strong>Propriétaire :</strong> <span className="ml-2">{selectedEvent.owner}</span>
+                <strong>Propriétaire :</strong>{" "}
+                <span className="ml-2">{selectedEvent.owner}</span>
               </p>
               <p className="flex items-center">
                 <PawPrint className="w-5 h-5 mr-3 text-green-600 flex-shrink-0" />
-                <strong>Animal :</strong> <span className="ml-2">{selectedEvent.petName}</span>
+                <strong>Animal :</strong>{" "}
+                <span className="ml-2">{selectedEvent.petName}</span>
               </p>
               <p className="flex items-center">
                 <ClipboardList className="w-5 h-5 mr-3 text-orange-600 flex-shrink-0" />
-                <strong>Motif :</strong> <span className="ml-2">{selectedEvent.reason}</span>
+                <strong>Motif :</strong>{" "}
+                <span className="ml-2">{selectedEvent.reason}</span>
               </p>
               <p className="flex items-center">
                 <CheckCircle className="w-5 h-5 mr-3 text-gray-600 flex-shrink-0" />
@@ -458,14 +515,24 @@ const AppointmentCalendar = () => {
                     className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg transition duration-200 transform hover:scale-105 shadow-md flex items-center justify-center gap-2"
                     disabled={updatingStatus}
                   >
-                    {updatingStatus ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />} Approuver
+                    {updatingStatus ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-5 h-5" />
+                    )}{" "}
+                    Approuver
                   </button>
                   <button
                     onClick={() => updateStatus("annulé")}
                     className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg transition duration-200 transform hover:scale-105 shadow-md flex items-center justify-center gap-2"
                     disabled={updatingStatus}
                   >
-                    {updatingStatus ? <Loader2 className="w-5 h-5 animate-spin" /> : <XCircle className="w-5 h-5" />} Rejeter
+                    {updatingStatus ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <XCircle className="w-5 h-5" />
+                    )}{" "}
+                    Rejeter
                   </button>
                   <button
                     onClick={closeModal}
@@ -482,16 +549,18 @@ const AppointmentCalendar = () => {
                         closeModal();
                         // Navigate to a consultation creation/form page,
                         // passing appointmentId and petId as state
-                        navigate('/consultations/create', {
+                        navigate("/consultations/create", {
                           state: {
                             appointmentId: selectedEvent.id, // This is the appointment ID
                             petId: selectedEvent.petId, // This is the pet ID
                             vetId: user.id, // Pass the current vet's ID
                             // FIX: Use selectedEvent.start which is the original ISO string
-                            prefillDate: new Date(selectedEvent.start).toISOString().split('T')[0],
+                            prefillDate: new Date(selectedEvent.start)
+                              .toISOString()
+                              .split("T")[0],
                             prefillReason: selectedEvent.reason, // Pre-fill reason
-                            prefillPetName: selectedEvent.petName // Pre-fill pet name for display
-                          }
+                            prefillPetName: selectedEvent.petName, // Pre-fill pet name for display
+                          },
                         });
                       }}
                       className="w-full bg-teal-600 hover:bg-teal-700 text-white px-4 py-3 rounded-lg font-medium mb-4 transition duration-200 transform hover:scale-105 shadow-md"
@@ -502,7 +571,11 @@ const AppointmentCalendar = () => {
 
                   <p className="text-center text-lg text-gray-700 font-medium mb-4">
                     Ce rendez-vous est{" "}
-                    <span className={`capitalize font-semibold ${getStatusBadgeClasses(selectedEvent.status)}`}>
+                    <span
+                      className={`capitalize font-semibold ${getStatusBadgeClasses(
+                        selectedEvent.status
+                      )}`}
+                    >
                       {selectedEvent.status}
                     </span>
                     .

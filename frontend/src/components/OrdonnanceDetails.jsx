@@ -2,7 +2,7 @@
 import React, { useState, useCallback } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { ClipboardList, Stethoscope, Pill, Clock, CalendarDays, BookOpen, MinusCircle, FileText, Printer, Info, XCircle } from "lucide-react";
+import { ClipboardList, Stethoscope,PawPrint, Pill, Clock, CalendarDays, BookOpen, MinusCircle, FileText, Printer, Info, XCircle, Syringe } from "lucide-react"; // Syringe icon imported
 
 // Import PDF library
 import jsPDF from 'jspdf';
@@ -21,20 +21,15 @@ const OrdonnanceDetails = ({ ordonnance, user, handleDeleteOrdonnance }) => {
     setPrintError(null); // Clear previous errors
 
     const consultation = ordonnance.consultationId;
-    // CORRECTION ICI : pet et owner sont des propriétés imbriquées de consultation
     const pet = consultation?.petId;
-    const owner = consultation?.petId?.ownerId;
+    const owner = pet?.ownerId;
     const vet = ordonnance.vetId;
 
-    // Check if essential data for PDF is populated and are objects (not just string IDs)
-    if (
-      !consultation || typeof consultation === 'string' ||
-      !pet || typeof pet === 'string' ||
-      !owner || typeof owner === 'string' ||
-      !vet || typeof vet === 'string'
-    ) {
+    // Check if essential data for PDF is populated
+    // This check ensures that 'consultation', 'pet', 'owner', 'vet' are objects and not just IDs or undefined
+    if (!consultation || typeof consultation === 'string' || !pet || typeof pet === 'string' || !owner || typeof owner === 'string' || !vet || typeof vet === 'string') {
       setPrintError("Impossible d'imprimer l'ordonnance. Les informations complètes de la consultation, de l'animal, du propriétaire ou du vétérinaire sont manquantes. Veuillez recharger la page ou vérifier les données.");
-      console.error("Données manquantes pour impression (ou non populées) :", { consultation, pet, owner, vet });
+      console.warn("Données manquantes pour impression (ou non populées) :", { consultation, pet, owner, vet });
       clearPrintError();
       return;
     }
@@ -72,6 +67,7 @@ const OrdonnanceDetails = ({ ordonnance, user, handleDeleteOrdonnance }) => {
     yPos += 7;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
+    // Use optional chaining for safer access
     doc.text(`Nom de l'animal: ${pet?.name || "N/A"}`, 20, yPos);
     yPos += 5;
     doc.text(`Espèce: ${pet?.species || "N/A"}`, 20, yPos);
@@ -187,7 +183,7 @@ const OrdonnanceDetails = ({ ordonnance, user, handleDeleteOrdonnance }) => {
 
 
   return (
-    <div className="border p-6 rounded-lg shadow-sm bg-white hover:shadow-md transition duration-200">
+    <div className="bg-white shadow-lg rounded-xl p-6 mb-6 border border-gray-200 animate-fade-in"> {/* Added animate-fade-in */}
       <style>
         {`
         @media print {
@@ -202,31 +198,33 @@ const OrdonnanceDetails = ({ ordonnance, user, handleDeleteOrdonnance }) => {
         `}
       </style>
 
-      <div className="flex justify-between items-center mb-4">
-        <h4 className="text-xl font-semibold text-gray-800 flex items-center">
-          <ClipboardList className="w-5 h-5 mr-2 text-teal-600" /> Ordonnance du{" "}
-          {format(new Date(ordonnance.dateEmission), "dd MMMM yyyy", { locale: fr })}
-        </h4>
-        <div className="no-print">
-          {(user.role === "vet" || user.role === "admin") && (
+      <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
+        <h3 className="text-2xl font-semibold text-teal-800 flex items-center">
+          <ClipboardList className="w-6 h-6 mr-3 text-teal-600" />
+          Ordonnance 
+        </h3>
+        <div className="flex space-x-2 no-print"> {/* Added no-print class */}
+          {(user.role === "vet" ) && (
             <button
               onClick={() => handleDeleteOrdonnance(ordonnance._id)}
-              className="inline-flex items-center bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm font-semibold transition duration-200 shadow-sm hover:shadow-md transform hover:scale-105 mr-2"
+              className="p-2 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition duration-300 ease-in-out transform hover:scale-110 shadow-sm hover:shadow-md" // Smoother hover
+              title="Supprimer l'ordonnance"
             >
-              <MinusCircle className="w-4 h-4 mr-1" /> Supprimer
+              <MinusCircle className="w-5 h-5" />
             </button>
           )}
           <button
             onClick={handlePrint}
-            className="inline-flex items-center bg-gray-600 hover:bg-gray-700 text-white px-3 py-1.5 rounded text-sm font-semibold transition duration-200 shadow-sm hover:shadow-md transform hover:scale-105"
+            className="p-2 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 transition duration-300 ease-in-out transform hover:scale-110 shadow-sm hover:shadow-md" // Smoother hover
+            title="Imprimer l'ordonnance"
           >
-            <Printer className="w-4 h-4 mr-1" /> Imprimer (PDF)
+            <Printer className="w-5 h-5" />
           </button>
         </div>
       </div>
 
       {printError && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-4 animate-fade-in-down" role="alert">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-4 transition-opacity duration-500 ease-out" role="alert"> {/* Added transition-opacity */}
           <div className="flex items-center">
             <Info className="w-5 h-5 mr-2 flex-shrink-0" />
             <span className="block sm:inline font-medium">{printError}</span>
@@ -246,14 +244,51 @@ const OrdonnanceDetails = ({ ordonnance, user, handleDeleteOrdonnance }) => {
         <span className="font-semibold">Émise par :</span>{" "}
         {ordonnance.vetId?.username || "Inconnu"}
       </p>
-      <div className="mt-4">
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700 mt-4">
+        <div className="p-2 bg-gray-50 rounded-lg shadow-inner"> {/* Added subtle styling */}
+          <p className="flex items-center text-lg mb-2">
+            <CalendarDays className="w-5 h-5 mr-2 text-indigo-500" />
+            <span className="font-medium">Date d'émission:</span>{" "}
+            {format(new Date(ordonnance.dateEmission), "dd MMMM yyyy", { locale: fr })}
+          </p>
+          {/* Vet name is already displayed above, so removing redundancy here */}
+        </div>
+        <div className="p-2 bg-gray-50 rounded-lg shadow-inner"> {/* Added subtle styling */}
+          {ordonnance.consultationId && (
+            <>
+              <p className="flex items-center text-lg mb-2">
+                <FileText className="w-5 h-5 mr-2 text-purple-500" />
+                <span className="font-medium">Consultation ID:</span>{" "}
+                {ordonnance.consultationId._id.substring(0, 8)}
+              </p>
+              {ordonnance.consultationId.petId && (
+                <p className="flex items-center text-lg mb-2">
+                  <PawPrint className="w-5 h-5 mr-2 text-orange-500" /> {/* Changed Pill to PawPrint for animal */}
+                  <span className="font-medium">Animal:</span>{" "}
+                  {ordonnance.consultationId.petId.name} ({ordonnance.consultationId.petId.species})
+                </p>
+              )}
+              {ordonnance.consultationId.petId && ordonnance.consultationId.petId.ownerId && (
+                <p className="flex items-center text-lg mb-2">
+                  <ClipboardList className="w-5 h-5 mr-2 text-blue-500" />
+                  <span className="font-medium">Propriétaire:</span>{" "}
+                  {ordonnance.consultationId.petId.ownerId.username}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6">
         <h5 className="font-semibold text-lg mb-2 text-teal-700 flex items-center">
           <Pill className="w-5 h-5 mr-2 text-teal-600" /> Médicaments :
         </h5>
         {ordonnance.medicaments.length > 0 ? (
           <ul className="list-none space-y-3 pl-0">
             {ordonnance.medicaments.map((med, medIndex) => (
-              <li key={medIndex} className="bg-gray-100 p-4 rounded-md shadow-inner border border-gray-200">
+              <li key={medIndex} className="bg-gray-100 p-4 rounded-md shadow-inner border border-gray-200 transition duration-200 ease-in-out hover:bg-gray-100 hover:shadow-md transform hover:-translate-y-0.5"> {/* Smoother hover */}
                 <p className="font-semibold text-gray-900 flex items-center">
                   <Pill className="w-4 h-4 mr-2 text-blue-500" />
                   {med.nom}
@@ -278,7 +313,9 @@ const OrdonnanceDetails = ({ ordonnance, user, handleDeleteOrdonnance }) => {
           <h5 className="font-semibold text-lg mb-2 text-teal-700 flex items-center">
             <FileText className="w-5 h-5 mr-2 text-teal-600" /> Notes Spéciales :
           </h5>
-          <p className="whitespace-pre-wrap ml-7">{ordonnance.notesSpeciales}</p>
+          <p className="whitespace-pre-wrap ml-7 bg-gray-50 p-4 rounded-lg border border-gray-100 shadow-sm"> {/* Added subtle styling */}
+            {ordonnance.notesSpeciales}
+          </p>
         </div>
       )}
     </div>

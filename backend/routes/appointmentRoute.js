@@ -3,13 +3,16 @@ const router = express.Router();
 const {
   createAppointment,
   getAllAppointments,
-  getAppointmentsByOwner, // 👈 Importez cette fonction
-  getAppointmentsByVet,   // 👈 Importez cette fonction
+  getAppointmentsByOwner,
+  getAppointmentsByVet,
   updateAppointmentStatus,
   getAppointmentById,
-  deleteAppointment,
+  // La fonction pour annuler un rendez-vous a été renommée
+  // pour mieux refléter son action (mise à jour du statut)
+  cancelAppointment, 
   countAppointmentsByUser
 } = require("../controllers/appointmentController");
+
 const { authMiddleware, checkRole } = require("../middleware/authMiddleware");
 
 // Appliquer le middleware d'authentification à toutes les routes de ce routeur
@@ -23,45 +26,42 @@ router.get(
   getAllAppointments
 );
 
-
 router.get("/mine", checkRole(["pet-owner", "vet"]), (req, res, next) => {
   if (req.user.role === 'pet-owner') {
     return getAppointmentsByOwner(req, res, next);
   } else if (req.user.role === 'vet') {
     return getAppointmentsByVet(req, res, next);
   }
-  // Si le rôle n'est ni pet-owner ni vet, ou si checkRole n'a pas filtré
   res.status(403).json({ message: "Accès refusé pour ce rôle." });
 });
 
-
 router.get("/count/me", checkRole(["pet-owner", "vet"]), countAppointmentsByUser);
 
-
 // @route   PUT /api/appointments/:id/status
-// @desc    Mettre à jour le statut d'un rendez-vous (vétérinaire uniquement)
-// @access  Private (vet)
+// @desc    Mettre à jour le statut d'un rendez-vous (vétérinaire ou admin)
+// @access  Private (vet, admin)
+// Note: Le contrôleur supporte les deux rôles, nous ajustons donc le middleware
 router.put(
   "/:id/status",
-  checkRole(["vet"]),
+  checkRole(["vet", "admin"]),
   updateAppointmentStatus
 );
 
-// @route   GET /api/appointments/:id
-// @desc    Récupérer un rendez-vous spécifique par son ID
-// @access  Private (admin, vet, propriétaire si c'est le sien - vérifié dans le contrôleur)
-// Placez les routes génériques avec :id APRÈS les routes plus spécifiques
 router.get(
   "/:id",
-  checkRole(["admin", "vet", "pet-owner"]), // Permettre au propriétaire de voir le sien
+  checkRole(["admin", "vet", "pet-owner"]),
   getAppointmentById
 );
 
-// @route   DELETE /api/appointments/:id
-// @desc    Supprimer un rendez-vous (propriétaire d'animal ou admin)
+// @route   PUT /api/appointments/:id/cancel
+// @desc    Annuler un rendez-vous (owner ou admin)
 // @access  Private (pet-owner, admin)
-// Le contrôleur doit vérifier que le propriétaire est bien le propriétaire du rendez-vous
-router.delete("/:id", checkRole(["pet-owner", "admin"]), deleteAppointment);
-
+// Note: Le contrôleur met à jour le statut, donc PUT est plus approprié que DELETE.
+// Nous utilisons une route plus descriptive pour l'annulation.
+router.put(
+  "/:id/cancel",
+  checkRole(["pet-owner", "admin"]),
+  cancelAppointment
+);
 
 module.exports = router;

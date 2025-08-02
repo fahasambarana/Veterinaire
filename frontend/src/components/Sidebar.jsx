@@ -1,4 +1,4 @@
-import { CalendarCheck, Home, LogOut, Menu, MessageSquare, Settings, User, X } from "lucide-react";
+import { CalendarCheck, Home, LogOut, Menu, MessageSquare, Settings, User,Users, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import Logo from "../assets/LogoNgeza.png";
@@ -14,6 +14,7 @@ const menuItems = [
   { label: "Rendez-vous", icon: CalendarCheck, path: "/appointments" },
   { label: "Messages", icon: MessageSquare, path: "/messages" }, // 👈 MODIFIÉ ICI : path est maintenant "/messages"
   { label: "Profil", icon: User, path: "/profile" },
+  // { label: "Tous les utilisateurs", icon: User, path: "/users" }, // This item will be conditionally added
   { label: "Paramètres", icon: Settings, path: "/settings" }, // Si vous avez une page Paramètres
 ];
 
@@ -22,13 +23,29 @@ export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false); // Sidebar state
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth(); // Get user and loading from useAuth
 
   // Handle logout logic
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
+
+  // Dynamically create menu items based on user role
+  const filteredMenuItems = menuItems.filter(item => {
+    // If the user is an admin, show "Tous les utilisateurs"
+    if (item.label === "Tous les utilisateurs") {
+      return user?.role === "admin";
+    }
+    // For all other items, show them regardless of role (or add more specific role checks if needed)
+    return true;
+  });
+
+  // Add "Tous les utilisateurs" specifically if user is admin
+  if (user?.role === "admin" && !filteredMenuItems.some(item => item.label === "Tous les utilisateurs")) {
+    filteredMenuItems.splice(5, 0, { label: "Utilisateurs", icon: Users, path: "/userlist" }); // Insert at a specific index if needed, or just push
+  }
+
 
   return (
     <>
@@ -42,7 +59,7 @@ export default function Sidebar() {
 
       {/* Sidebar */}
       <div
-        className={`fixed top-0 left-0 h-full w-64 bg-teal-600 text-white p-5
+        className={`fixed top-0 left-0 h-full w-[230px] bg-teal-600 text-white p-5
         flex flex-col justify-between transition-transform duration-300 ease-in-out z-40
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
         md:translate-x-0`}
@@ -54,7 +71,8 @@ export default function Sidebar() {
           </h2>
           <nav>
             <ul className="space-y-2">
-              {menuItems.map(({ label, icon: Icon, path }) => {
+              {/* Render filtered menu items */}
+              {filteredMenuItems.map(({ label, icon: Icon, path }) => {
                 const isActive = location.pathname === path;
                 return (
                   <li key={label}>

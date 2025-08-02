@@ -1,42 +1,90 @@
 // backend/controllers/appointmentController.js
-const Appointment = require("../models/appointmentModel");
-const User = require("../models/userModel"); // Ajouté: Nécessaire pour peupler ownerId et vetId
-const Pet = require("../models/petModel");   // Ajouté: Nécessaire pour peupler petId
 
-// ✅ Créer un rendez-vous
+const Appointment = require("../models/appointmentModel");
+const User = require("../models/userModel");
+const Pet = require("../models/petModel");
+const mongoose = require('mongoose');
+
+// Importation de la fonction utilitaire de notification
+const { createAndEmitNotification } = require("./notificationController");
+
+// Fonction d'aide pour formater les dates de manière lisible
+const formatDate = (date) => {
+  if (date instanceof Date && !isNaN(date)) {
+    // Utiliser toLocaleDateString pour un format lisible
+    return date.toLocaleDateString();
+  }
+  return "une date inconnue";
+};
+
+// @desc    Créer un nouveau rendez-vous
+// @route   POST /api/appointments/create
+// @access  Privé (pet-owner)
 exports.createAppointment = async (req, res) => {
   try {
     const { petId, vetId, date, reason } = req.body;
-    const ownerId = req.user.id; // L'ID du propriétaire vient de l'utilisateur authentifié
+    const ownerId = req.user.id;
 
-    // Validation basique
+    // Validation initiale de la requête
     if (!petId || !vetId || !date || !reason) {
-        return res.status(400).json({ message: "Tous les champs (animal, vétérinaire, date, raison) sont obligatoires." });
+      return res.status(400).json({ message: "Tous les champs (animal, vétérinaire, date, raison) sont requis." });
     }
 
+    // Validation des IDs
+    if (!mongoose.Types.ObjectId.isValid(petId) || !mongoose.Types.ObjectId.isValid(vetId)) {
+        return res.status(400).json({ message: "Un ou plusieurs des IDs fournis ne sont pas valides." });
+    }
+
+    // Création du rendez-vous dans la base de données
     const appointment = await Appointment.create({
       petId,
       vetId,
       ownerId,
       date,
       reason,
-      status: "en attente", // Nouveau rendez-vous est toujours en attente
+      status: "en attente",
     });
 
-    // Repeupler les champs pour répondre directement avec des données complètes
+    // Peupler les données pour la réponse et la notification
     const populatedAppointment = await Appointment.findById(appointment._id)
-      .populate("petId", "name species") // Ajout de 'species' pour plus de détails
+      .populate("petId", "name species")
       .populate("ownerId", "username role _id")
       .populate("vetId", "username _id");
+
+    const io = req.app.get('io');
+    if (io && typeof createAndEmitNotification === 'function') {
+      // Créer et émettre la notification au vétérinaire
+      await createAndEmitNotification({
+        recipientId: vetId,
+        title: "Nouveau rendez-vous en attente",
+        message: `Un nouveau rendez-vous a été créé par ${req.user.username} pour le ${formatDate(new Date(date))}.`,
+        type: "appointment_created",
+        entityId: appointment._id,
+      }, io);
+    } else {
+        console.error("Erreur: L'instance Socket.IO n'est pas disponible ou la fonction de notification est manquante.");
+    }
 
     res.status(201).json({ message: "Rendez-vous créé avec succès", appointment: populatedAppointment });
   } catch (error) {
     console.error("Erreur lors de la création du rendez-vous:", error);
-    res.status(500).json({ message: "Erreur serveur lors de la création du rendez-vous", error: error.message });
+    
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({ message: messages.join(', ') });
+    }
+
+    if (error.name === 'CastError') {
+      return res.status(400).json({ message: `Erreur de format pour le champ ${error.path}: ${error.value}.` });
+    }
+
+    res.status(500).json({ message: "Erreur interne du serveur lors de la création du rendez-vous.", error: error.message });
   }
 };
 
-// ✅ Récupérer tous les rendez-vous (principalement pour les administrateurs)
+// @desc    Récupérer tous les rendez-vous (principalement pour les admins)
+// @route   GET /api/appointments/all
+// @access  Privé (admin, vet)
 exports.getAllAppointments = async (req, res) => {
   try {
     const appointments = await Appointment.find()
@@ -51,90 +99,142 @@ exports.getAllAppointments = async (req, res) => {
   }
 };
 
-// NOUVEAU: ✅ Obtenir les rendez-vous d'un propriétaire spécifique
+// @desc    Récupérer les rendez-vous d'un propriétaire spécifique
+// @route   GET /api/appointments/mine
+// @access  Privé (pet-owner)
 exports.getAppointmentsByOwner = async (req, res) => {
   try {
-    const ownerId = req.user.id; // L'ID du propriétaire vient du token JWT
+    const ownerId = req.user.id;
     const appointments = await Appointment.find({ ownerId })
       .populate("petId", "name species")
       .populate("ownerId", "username role _id")
       .populate("vetId", "username _id");
     res.status(200).json(appointments);
   } catch (error) {
-      console.error("Erreur lors de la récupération des rendez-vous du propriétaire :", error);
-      res.status(500).json({ message: "Erreur serveur lors de la récupération des rendez-vous du propriétaire.", error: error.message });
+    console.error("Erreur lors de la récupération des rendez-vous du propriétaire:", error);
+    res.status(500).json({ message: "Erreur serveur lors de la récupération des rendez-vous du propriétaire.", error: error.message });
   }
 };
 
-// NOUVEAU: ✅ Obtenir les rendez-vous d'un vétérinaire spécifique
+// @desc    Récupérer les rendez-vous d'un vétérinaire spécifique
+// @route   GET /api/appointments/mine
+// @access  Privé (vet)
 exports.getAppointmentsByVet = async (req, res) => {
   try {
-    const vetId = req.user.id; // L'ID du vétérinaire vient du token JWT
+    const vetId = req.user.id;
     const appointments = await Appointment.find({ vetId })
       .populate("petId", "name species")
       .populate("ownerId", "username role _id")
       .populate("vetId", "username _id");
     res.status(200).json(appointments);
   } catch (error) {
-      console.error("Erreur lors de la récupération des rendez-vous du vétérinaire :", error);
-      res.status(500).json({ message: "Erreur serveur lors de la récupération des rendez-vous du vétérinaire.", error: error.message });
+    console.error("Erreur lors de la récupération des rendez-vous du vétérinaire:", error);
+    res.status(500).json({ message: "Erreur serveur lors de la récupération des rendez-vous du vétérinaire.", error: error.message });
   }
 };
 
-// ✅ Mettre à jour le statut d'un rendez-vous
+// @desc    Mettre à jour le statut d'un rendez-vous
+// @route   PUT /api/appointments/:id/status
+// @access  Privé (vet, admin)
 exports.updateAppointmentStatus = async (req, res) => {
   try {
     const appointmentId = req.params.id;
     const { status } = req.body;
     const userId = req.user.id;
 
-    const validStatuses = ["en attente", "confirmé", "annulé", "terminé"];
+    if (!mongoose.Types.ObjectId.isValid(appointmentId)) {
+      return res.status(400).json({ message: "ID de rendez-vous invalide." });
+    }
+
+    const validStatuses = ["en attente", "confirmé", "annulé", "rejeté", "terminé"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: "Statut invalide fourni." });
     }
 
     const appointment = await Appointment.findById(appointmentId)
-      .populate("vetId", "_id"); // On a juste besoin de l'ID du vétérinaire pour la vérification
+      .populate("vetId", "_id")
+      .populate("petId", "name")
+      .populate("ownerId", "_id");
 
     if (!appointment) {
       return res.status(404).json({ message: "Rendez-vous non trouvé." });
     }
 
-    // Vérification d'autorisation pour changer le statut
-    // Seul le vétérinaire assigné (ou un admin) peut changer le statut
-    if (req.user.role === "vet" && appointment.vetId && appointment.vetId._id.toString() === userId.toString()) {
-        // Le vétérinaire assigné peut modifier le statut
-    } else if (req.user.role === "admin") {
-        // L'admin peut modifier le statut
+    const isAssignedVet = appointment.vetId && appointment.vetId._id.toString() === userId.toString();
+    const isAdmin = req.user.role === "admin";
+    
+    if (isAssignedVet || isAdmin) {
+      const oldStatus = appointment.status;
+      appointment.status = status;
+      await appointment.save();
+  
+      const io = req.app.get('io');
+      if (io && appointment.ownerId && typeof createAndEmitNotification === 'function') {
+        let notificationTitle;
+        let notificationMessage;
+        let notificationType;
+  
+        // Gérer les notifications pour chaque changement de statut
+        if (status === 'confirmé' && oldStatus !== 'confirmé') {
+          notificationTitle = 'Rendez-vous confirmé';
+          notificationMessage = `Votre rendez-vous pour ${appointment.petId.name} le ${formatDate(appointment.date)} a été confirmé.`;
+          notificationType = 'appointment_approved';
+        } else if (status === 'annulé' && oldStatus !== 'annulé') {
+          notificationTitle = 'Rendez-vous annulé';
+          notificationMessage = `Votre rendez-vous pour ${appointment.petId.name} le ${formatDate(appointment.date)} a été annulé par le vétérinaire.`;
+          notificationType = 'appointment_cancelled';
+        } else if (status === 'rejeté' && oldStatus !== 'rejeté') {
+          notificationTitle = 'Rendez-vous rejeté';
+          notificationMessage = `Votre demande de rendez-vous pour ${appointment.petId.name} le ${formatDate(appointment.date)} a été rejetée.`;
+          notificationType = 'appointment_rejected';
+        } else if (status === 'terminé' && oldStatus !== 'terminé') {
+          notificationTitle = 'Rendez-vous terminé';
+          notificationMessage = `Le rendez-vous pour ${appointment.petId.name} le ${formatDate(appointment.date)} est terminé.`;
+          notificationType = 'appointment_completed';
+        }
+  
+        if (notificationType) {
+          // Emettre la notification au propriétaire de l'animal
+          await createAndEmitNotification({
+            recipientId: appointment.ownerId._id,
+            title: notificationTitle,
+            message: notificationMessage,
+            type: notificationType,
+            entityId: appointment._id,
+          }, io);
+        }
+      } else {
+        console.error("Erreur: L'instance Socket.IO n'est pas disponible ou la fonction de notification est manquante.");
+      }
+  
+      const updatedAppointment = await Appointment.findById(appointmentId)
+        .populate("petId", "name species")
+        .populate("ownerId", "username role _id")
+        .populate("vetId", "username _id");
+  
+      return res.json({ message: "Statut du rendez-vous mis à jour avec succès", appointment: updatedAppointment });
     } else {
       return res.status(403).json({
-        message: "Accès refusé : vous n'êtes pas autorisé à modifier le statut de ce rendez-vous.",
+        message: "Accès refusé: vous n'êtes pas autorisé à modifier le statut de ce rendez-vous.",
       });
     }
 
-    appointment.status = status;
-    await appointment.save();
-
-    // Repeupler pour la réponse
-    const updatedAppointment = await Appointment.findById(appointmentId)
-      .populate("petId", "name species")
-      .populate("ownerId", "username role _id")
-      .populate("vetId", "username _id");
-
-    res.json({ message: "Statut du rendez-vous mis à jour avec succès", appointment: updatedAppointment });
   } catch (error) {
     console.error("Erreur lors de la mise à jour du statut du rendez-vous:", error);
     res.status(500).json({ message: "Erreur serveur lors de la mise à jour du statut du rendez-vous", error: error.message });
   }
 };
 
-// ✅ Récupérer un rendez-vous par son ID
+// @desc    Récupérer un rendez-vous par son ID
+// @route   GET /api/appointments/:id
+// @access  Privé (owner, admin, vet)
 exports.getAppointmentById = async (req, res) => {
   try {
     const appointmentId = req.params.id;
-    const userId = req.user.id; // L'utilisateur qui fait la requête
+    const userId = req.user.id;
     const userRole = req.user.role;
 
+    // Peupler les données de l'animal, du propriétaire et du vétérinaire
     const appointment = await Appointment.findById(appointmentId)
       .populate("petId", "name species")
       .populate("ownerId", "username role _id")
@@ -144,8 +244,6 @@ exports.getAppointmentById = async (req, res) => {
       return res.status(404).json({ message: "Rendez-vous non trouvé." });
     }
 
-    // Vérification d'autorisation pour voir un rendez-vous spécifique
-    // Seul le propriétaire de l'animal, le vétérinaire assigné ou un admin peut voir
     const isOwner = appointment.ownerId && appointment.ownerId._id.toString() === userId.toString();
     const isAssignedVet = appointment.vetId && appointment.vetId._id.toString() === userId.toString();
     const isAdmin = userRole === 'admin';
@@ -157,19 +255,25 @@ exports.getAppointmentById = async (req, res) => {
     res.status(200).json(appointment);
   } catch (error) {
     console.error("Erreur lors de la récupération du rendez-vous par ID:", error);
-    if (error.name === 'CastError') { // Gère les IDs mal formés
-        return res.status(400).json({ message: "ID de rendez-vous invalide." });
+    if (error.name === 'CastError') {
+      return res.status(400).json({ message: "ID de rendez-vous invalide." });
     }
     res.status(500).json({ message: "Erreur serveur lors de la récupération du rendez-vous par ID.", error: error.message });
   }
 };
 
-// ✅ Supprimer (ou annuler) un rendez-vous
-exports.deleteAppointment = async (req, res) => {
+// @desc    Annuler un rendez-vous (par l'owner ou l'admin)
+// @route   PUT /api/appointments/:id/cancel
+// @access  Privé (owner, admin)
+exports.cancelAppointment = async (req, res) => {
   try {
     const appointmentId = req.params.id;
     const userId = req.user.id;
     const userRole = req.user.role;
+
+    if (!mongoose.Types.ObjectId.isValid(appointmentId)) {
+      return res.status(400).json({ message: "ID de rendez-vous invalide." });
+    }
 
     const appointment = await Appointment.findById(appointmentId);
 
@@ -177,9 +281,6 @@ exports.deleteAppointment = async (req, res) => {
       return res.status(404).json({ message: "Rendez-vous non trouvé." });
     }
 
-    // Vérification d'autorisation pour l'annulation
-    // Seul le propriétaire du rendez-vous ou un admin peut l'annuler.
-    // Un vétérinaire peut aussi l'annuler via updateAppointmentStatus, mais ici c'est pour le client.
     const isOwner = appointment.ownerId.toString() === userId;
     const isAdmin = userRole === 'admin';
 
@@ -187,91 +288,77 @@ exports.deleteAppointment = async (req, res) => {
       return res.status(403).json({ message: "Accès refusé. Vous n'êtes pas autorisé à annuler ce rendez-vous." });
     }
 
-    // Changer le statut à 'annulé' au lieu de supprimer physiquement
-    // C'est généralement préféré pour garder un historique
+    if (appointment.status === 'annulé') {
+      return res.status(200).json({ message: "Le rendez-vous est déjà annulé.", appointment });
+    }
+
     appointment.status = 'annulé';
     await appointment.save();
 
-    res.status(200).json({ message: "Rendez-vous annulé avec succès.", appointment });
+    const updatedAppointment = await Appointment.findById(appointmentId)
+      .populate("petId", "name")
+      .populate("vetId", "_id")
+      .populate("ownerId", "_id"); // Ajout du peuplement pour le propriétaire
+      
+    const io = req.app.get('io');
+    if (io && typeof createAndEmitNotification === 'function') {
+      // Notifier le vétérinaire si c'est le propriétaire qui annule
+      if (isOwner) {
+        await createAndEmitNotification({
+          recipientId: updatedAppointment.vetId._id,
+          title: "Rendez-vous annulé",
+          message: `Le rendez-vous pour ${updatedAppointment.petId.name} le ${formatDate(updatedAppointment.date)} a été annulé par le propriétaire.`,
+          type: "appointment_cancelled",
+          entityId: updatedAppointment._id,
+        }, io);
+      }
+
+      // Notifier le propriétaire si c'est un admin qui annule
+      if (isAdmin) {
+        await createAndEmitNotification({
+          recipientId: updatedAppointment.ownerId._id, // Correction de l'ID du destinataire
+          title: "Rendez-vous annulé par l'administration",
+          message: `Votre rendez-vous pour ${updatedAppointment.petId.name} le ${formatDate(updatedAppointment.date)} a été annulé par l'administration.`,
+          type: "appointment_cancelled",
+          entityId: updatedAppointment._id,
+        }, io);
+      }
+    } else {
+        console.error("Erreur: L'instance Socket.IO n'est pas disponible ou la fonction de notification est manquante.");
+    }
+    
+    res.status(200).json({ message: "Rendez-vous annulé avec succès.", appointment: updatedAppointment });
   } catch (error) {
     console.error("Erreur serveur lors de l'annulation du rendez-vous:", error);
     if (error.name === 'CastError') {
-        return res.status(400).json({ message: "ID de rendez-vous invalide." });
+      return res.status(400).json({ message: "ID de rendez-vous invalide." });
     }
     res.status(500).json({ message: "Erreur serveur lors de l'annulation du rendez-vous.", error: error.message });
   }
 };
 
-// ✅ Mettre à jour un rendez-vous (pour le propriétaire, avant confirmation)
-exports.updateAppointment = async (req, res) => {
-  try {
-    const appointmentId = req.params.id;
-    const userId = req.user.id;
-    const userRole = req.user.role;
-    const { date, reason, petId, vetId } = req.body; // Champs que le client peut modifier
-
-    const appointment = await Appointment.findById(appointmentId);
-
-    if (!appointment) {
-      return res.status(404).json({ message: "Rendez-vous non trouvé." });
-    }
-
-    // Vérification d'autorisation: Seul le propriétaire du rendez-vous peut le modifier
-    // Et seulement si le statut est 'en attente'
-    if (appointment.ownerId.toString() !== userId || appointment.status !== 'en attente') {
-      // Un admin pourrait aussi modifier, mais pour un client, c'est limité
-      if (userRole !== 'admin') {
-        return res.status(403).json({ message: "Accès refusé. Vous n'êtes pas autorisé à modifier ce rendez-vous ou son statut ne permet plus la modification." });
-      }
-    }
-
-    // Mettre à jour les champs
-    appointment.date = date || appointment.date;
-    appointment.reason = reason || appointment.reason;
-    appointment.petId = petId || appointment.petId; // Permettre au client de changer d'animal
-    appointment.vetId = vetId || appointment.vetId; // Permettre au client de changer de vétérinaire
-    // Ne pas changer le statut ici, c'est géré par updateAppointmentStatus
-
-    await appointment.save();
-
-    const updatedAppointment = await Appointment.findById(appointmentId)
-      .populate("petId", "name species")
-      .populate("ownerId", "username role _id")
-      .populate("vetId", "username _id");
-
-    res.json({ message: "Rendez-vous mis à jour avec succès", appointment: updatedAppointment });
-  } catch (error) {
-    console.error("Erreur lors de la mise à jour du rendez-vous:", error);
-    if (error.name === 'CastError') {
-        return res.status(400).json({ message: "ID de rendez-vous invalide." });
-    }
-    res.status(500).json({ message: "Erreur serveur lors de la mise à jour du rendez-vous.", error: error.message });
-  }
-};
-
-// ✅ Compter les rendez-vous par utilisateur (propriétaire ou vétérinaire)
+// @desc    Compter les rendez-vous par utilisateur (propriétaire ou vétérinaire)
+// @route   GET /api/appointments/count/me
+// @access  Privé (pet-owner, vet)
 exports.countAppointmentsByUser = async (req, res) => {
   try {
-    const userId = req.user.id; // L'ID de l'utilisateur (propriétaire ou vétérinaire) vient du token JWT
-    const userRole = req.user.role; // Le rôle de l'utilisateur vient du token JWT
+    const userId = req.user.id;
+    const userRole = req.user.role;
 
     let query = {};
 
-    // Déterminer la requête en fonction du rôle de l'utilisateur
     if (userRole === 'pet-owner') {
       query = { ownerId: userId };
     } else if (userRole === 'vet') {
       query = { vetId: userId };
     } else {
-      // Pour les administrateurs ou autres rôles, on pourrait vouloir compter tous les rendez-vous
-      // Ou renvoyer 0 si ce rôle n'est pas censé avoir des rendez-vous spécifiques
       return res.status(403).json({ message: "Accès refusé. Ce rôle n'est pas autorisé à compter les rendez-vous de cette manière." });
     }
 
     const count = await Appointment.countDocuments(query);
     res.status(200).json({ count });
   } catch (error) {
-    console.error("Erreur lors du comptage des rendez-vous par utilisateur :", error);
+    console.error("Erreur lors du comptage des rendez-vous par utilisateur:", error);
     res.status(500).json({ message: "Erreur serveur lors du comptage des rendez-vous.", error: error.message });
   }
 };

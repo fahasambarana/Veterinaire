@@ -14,7 +14,7 @@ import {
 
 import DashboardCard from "../components/DashboardCard";
 import LayoutSidebar from "../components/LayoutSidebar"; // Adjusted path to components/
-import DisponibiliteCalendar from "../components/DisponibiliteCalendar"; // Assurez-vous que ce chemin est correct
+import DisponibiliteCalendar from "../components/DisponibiliteCalendar"; // Corrected import name to match the provided component name
 import useAuth from "../hooks/useAuth";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -160,7 +160,7 @@ const VetDashboard = () => {
     <LayoutSidebar>
       <div className="min-h-screen p-8 bg-gray-100">
         {/* Titre principal */}
-        <h1 className="text-4xl font-extrabold text-teal-700 mb-10 text-center">
+        <h1 className="text-4xl font-extrabold text-teal-700 mb-10 text-center animate-fade-in-down">
           Tableau de bord Vétérinaire
         </h1>
 
@@ -180,58 +180,67 @@ const VetDashboard = () => {
             title="Consultations aujourd'hui"
             value={todayConsultationsCount}
             icon={<Stethoscope className="text-white w-8 h-8" />}
-            bgColor="bg-teal-600"
+            bgColor="bg-gradient-to-br from-teal-600 to-teal-700" // Gradient
+            shadowColor="shadow-teal-500/50" // Custom shadow
+            hoverEffect="hover:scale-105 hover:shadow-lg" // Enhanced hover
           />
           <DashboardCard
             title="Total patients"
             value={totalPatientsCount}
             icon={<ClipboardList className="text-white w-8 h-8" />}
-            bgColor="bg-teal-500"
+            bgColor="bg-gradient-to-br from-teal-500 to-teal-600" // Gradient
+            shadowColor="shadow-teal-400/50"
+            hoverEffect="hover:scale-105 hover:shadow-lg"
           />
           <DashboardCard
             title="Rendez-vous futurs"
             value={upcomingAppointments.length}
             icon={<CalendarHeart className="text-white w-8 h-8" />}
-            bgColor="bg-blue-400"
+            bgColor="bg-gradient-to-br from-blue-500 to-blue-600" // Gradient
+            shadowColor="shadow-blue-400/50"
+            hoverEffect="hover:scale-105 hover:shadow-lg"
           />
           <DashboardCard
             title="Propriétaires suivis"
             value={totalClientsCount}
             icon={<Users className="text-white w-8 h-8" />}
-            bgColor="bg-purple-400"
+            bgColor="bg-gradient-to-br from-purple-500 to-purple-600" // Gradient
+            shadowColor="shadow-purple-400/50"
+            hoverEffect="hover:scale-105 hover:shadow-lg"
           />
         </div>
 
         {/* Partie principale : Calendrier (colonne de gauche) + Listes (colonne de droite) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           {/* Section Calendrier */}
-          <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl p-2 border border-gray-200 w-full lg:max-w-[1000px] h-[800px] overflow-auto">
-            <div className="flex justify-between items-center mb-6">
-            
-              
-            </div>
+          <div className="lg:col-span-3 bg-white rounded-2xl shadow-xl p-6 border border-gray-200 w-full">
+            <h2 className="text-2xl font-bold text-teal-700 mb-6 flex items-center border-b pb-4">
+              <CalendarHeart className="w-6 h-6 mr-3 text-teal-600" /> Mon Calendrier de Disponibilités
+            </h2>
+            {/* The DisponibiliteCalendar component already handles its own loading state */}
             <DisponibiliteCalendar veterinaireId={user?._id} />
           </div>
 
           {/* Colonne de droite: Prochains Rendez-vous & Consultations Récentes */}
-          <div className="lg:col-span-1 space-y-10">
+          {/* This column will now arrange its children in two columns on medium and large screens */}
+          <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-10"> {/* Changed space-y-10 to grid grid-cols-1 md:grid-cols-2 gap-10 */}
             {/* Section Prochains Rendez-vous */}
-            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
+            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-200 animate-fade-in-up"> {/* Added fade-in-up */}
               <h2 className="text-2xl font-bold text-teal-700 mb-6 flex items-center">
                 <Clock className="w-6 h-6 mr-3 text-blue-500" /> Prochains Rendez-vous
               </h2>
               {upcomingAppointments.length > 0 ? (
                 <ul className="space-y-4">
                   {upcomingAppointments.slice(0, 5).map((appointment) => ( // Afficher les 5 prochains
-                    <li key={appointment._id} className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition duration-200">
+                    <li key={appointment._id} className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition duration-200 ease-in-out transform hover:scale-[1.02]">
                       <p className="font-semibold text-lg text-gray-800">
-                        {appointment.petId?.name || "Animal Inconnu"}
+                        <span className="text-blue-600">{appointment.petId?.name || "Animal Inconnu"}</span>
                       </p>
                       <p className="text-gray-600 text-sm">
                         Date: {format(new Date(appointment.date), "dd MMMM yyyy à HH:mm", { locale: fr })}
                       </p>
                       <p className="text-gray-600 text-sm">
-                        Raison: {appointment.reason}
+                        Raison: <span className="italic">{appointment.reason}</span>
                       </p>
                       {/* Ajoutez un bouton pour voir les détails si nécessaire */}
                     </li>
@@ -246,22 +255,22 @@ const VetDashboard = () => {
             </div>
 
             {/* Section Consultations Récentes */}
-            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
+            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-200 animate-fade-in-up delay-100"> {/* Added fade-in-up with delay */}
               <h2 className="text-2xl font-bold text-teal-700 mb-6 flex items-center">
                 <FileText className="w-6 h-6 mr-3 text-green-500" /> Consultations Récentes
               </h2>
               {recentConsultations.length > 0 ? (
                 <ul className="space-y-4">
                   {recentConsultations.map((consultation) => (
-                    <li key={consultation._id} className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition duration-200">
+                    <li key={consultation._id} className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition duration-200 ease-in-out transform hover:scale-[1.02]">
                       <p className="font-semibold text-lg text-gray-800">
-                        {consultation.petId?.name || "Animal Inconnu"}
+                        <span className="text-green-600">{consultation.petId?.name || "Animal Inconnu"}</span>
                       </p>
                       <p className="text-gray-600 text-sm">
                         Date: {format(new Date(consultation.date || consultation.createdAt), "dd MMMM yyyy", { locale: fr })}
                       </p>
                       <p className="text-gray-600 text-sm truncate">
-                        Diagnostic: {consultation.diagnosis || "N/A"}
+                        Diagnostic: <span className="italic">{consultation.diagnosis || "N/A"}</span>
                       </p>
                       {/* Ajoutez un bouton pour voir les détails si nécessaire */}
                     </li>

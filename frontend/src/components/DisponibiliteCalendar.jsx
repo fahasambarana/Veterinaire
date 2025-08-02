@@ -310,9 +310,7 @@ const CalendrierDisponibilites = () => {
 
   return (
     <div className="p-4 bg-white rounded-lg">
-      <h2 className="text-2xl font-bold mb-4 text-teal-700">
-        Planning des disponibilités
-      </h2>
+   
 
       {/* Global Notification Display */}
       {globalMessage.text && (

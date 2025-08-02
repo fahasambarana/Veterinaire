@@ -12,8 +12,10 @@ import AppointementForm from "./components/AppointmentForm";
 import Consultation from "./pages/Consultation"; // This might be your ConsultationForm or a wrapper
 import ConsultationList from "./pages/ConsultationList";
 import ChatPage from "./pages/ChatPage";
+import AllUserListPages from "./pages/AllUserListPages";
 import ConsultationDetailsPage from "./pages/ConsultationDetailPage";
 import ConsultationForm from "./components/ConsultationForm"; // Import the ConsultationForm component
+import NotificationsPage from "./pages/NotificationsPage";
 
 function App() {
   const { user, loading } = useAuth(); // 👈 comes from context now
@@ -79,6 +81,8 @@ function App() {
         path="/consultation-details/:consultationId"
         element={<ConsultationDetailsPage />}
       />
+      <Route path="/userlist" element={<AllUserListPages />} />
+      <Route path="/notifications" element={<NotificationsPage />} />
 
       {/* Default Redirect */}
       <Route

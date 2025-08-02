@@ -1,3 +1,5 @@
+// backend/middleware/authMiddleware.js
+
 const jwt = require('jsonwebtoken');
 
 // ✅ Middleware d'authentification
@@ -21,7 +23,12 @@ const authMiddleware = (req, res, next) => {
     req.user = decoded; // Ajout de l'utilisateur à la requête
     next();
   } catch (err) {
-    return res.status(403).json({ error: 'Token invalide ou expiré' });
+    // Gestion des erreurs de token plus spécifique
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Token expiré. Veuillez vous reconnecter.' });
+    }
+    // Gère les erreurs de signature, de format, etc.
+    return res.status(403).json({ error: 'Token invalide.' });
   }
 };
 

@@ -1,11 +1,11 @@
-import { Edit, Camera } from "lucide-react"; // Importez l'icône Camera
-import { useEffect, useState, useRef } from "react"; // Importez useRef
+import { Edit, Camera, PawPrint, CalendarDays } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
+import { CheckCircle, XCircle } from "lucide-react";
 
-// Assurez-vous que API_URL est défini
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export default function Profile() {
@@ -17,23 +17,17 @@ export default function Profile() {
   const [errorMessage, setErrorMessage] = useState("");
   const [pets, setPets] = useState([]);
   const [appointments, setAppointments] = useState([]);
-  const [animalCount, setAnimalCount] = useState(0);
-
-  // Nouvel état pour l'upload d'image de profil
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const fileInputRef = useRef(null); // Réf pour le champ de fichier caché
+  const fileInputRef = useRef(null);
 
-  // Synchronise editedUser chaque fois que user change
   useEffect(() => {
     if (user) {
       setEditedUser({
         username: user.username || "",
         email: user.email || "",
       });
-      // Initialise la prévisualisation avec la photo de profil actuelle de l'utilisateur
-      // en s'assurant que le chemin est une URL complète
       if (user.profilePicture) {
         const fullProfilePictureUrl = user.profilePicture.startsWith('/uploads')
           ? `${API_URL}${user.profilePicture}`
@@ -43,36 +37,25 @@ export default function Profile() {
         setImagePreview("/default-avatar.png");
       }
     }
-  }, [user, API_URL]); // Ajout de API_URL aux dépendances
+  }, [user, API_URL]);
 
-  // Gérer la prévisualisation de l'image sélectionnée
-  // Ce useEffect est déclenché par `selectedImage` ou la mise à jour de `user.profilePicture`
   useEffect(() => {
     if (selectedImage) {
-      // Si une nouvelle image est sélectionnée, affichez sa prévisualisation temporaire
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
       };
       reader.readAsDataURL(selectedImage);
+    } else if (user?.profilePicture) {
+      const fullProfilePictureUrl = user.profilePicture.startsWith('/uploads')
+        ? `${API_URL}${user.profilePicture}`
+        : user.profilePicture;
+      setImagePreview(fullProfilePictureUrl);
     } else {
-      // Si aucune image n'est sélectionnée (ou si elle a été réinitialisée après l'upload),
-      // affichez la photo de profil actuelle de l'utilisateur depuis le contexte.
-      if (user?.profilePicture) {
-        const fullProfilePictureUrl = user.profilePicture.startsWith('/uploads')
-          ? `${API_URL}${user.profilePicture}`
-          : user.profilePicture;
-        setImagePreview(fullProfilePictureUrl);
-      } else {
-        setImagePreview("/default-avatar.png");
-      }
+      setImagePreview("/default-avatar.png");
     }
-    // Dépendances : selectedImage (pour la prévisualisation temporaire),
-    // et user?.profilePicture (pour la source de vérité après l'upload)
   }, [selectedImage, user?.profilePicture, API_URL]);
 
-
-  // Gérer les updates de formulaire
   const handleChange = (e) => {
     const { name, value } = e.target;
     setEditedUser((prev) => ({
@@ -81,21 +64,18 @@ export default function Profile() {
     }));
   };
 
-  // Fonction pour gérer la sélection de fichier
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setSelectedImage(file); // Définit l'image sélectionnée pour la prévisualisation immédiate
-      handleImageUpload(file); // Lance l'upload automatiquement après la sélection
+      setSelectedImage(file);
+      handleImageUpload(file);
     }
   };
 
-  // Fonction pour déclencher l'input file
   const triggerFileInput = () => {
     fileInputRef.current.click();
   };
 
-  // Fonction pour envoyer l'image de profil
   const handleImageUpload = async (fileToUpload) => {
     if (!fileToUpload) return;
 
@@ -104,42 +84,38 @@ export default function Profile() {
     setSuccessMessage("");
 
     const formData = new FormData();
-    formData.append("profilePicture", fileToUpload); // 'profilePicture' doit correspondre au nom du champ attendu par Multer
+    formData.append("profilePicture", fileToUpload);
 
     try {
       const token = localStorage.getItem("token");
       if (!token) {
         setErrorMessage("Vous devez être connecté pour télécharger une photo.");
-        setSelectedImage(null); // Réinitialise la prévisualisation en cas d'échec d'authentification
+        setSelectedImage(null);
         setUploadingImage(false);
         return;
       }
       const res = await axios.put(`${API_URL}/api/users/profile/picture`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data", // Indispensable pour FormData
+          "Content-Type": "multipart/form-data",
         },
       });
 
-      // Met à jour le contexte utilisateur avec la nouvelle photo (qui devrait contenir le chemin complet ou relatif)
       updateUser(res.data.user);
       setSuccessMessage("Photo de profil mise à jour avec succès !");
-      setSelectedImage(null); // Réinitialise l'image sélectionnée après un upload réussi.
-                              // Cela permettra au useEffect de revenir à la photo de l'utilisateur mise à jour.
+      setSelectedImage(null);
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {
       console.error("Erreur lors du téléchargement de la photo de profil:", err);
       setErrorMessage(
         err?.response?.data?.message || "Erreur lors de la mise à jour de la photo de profil."
       );
-      setSelectedImage(null); // En cas d'erreur, réinitialise la prévisualisation
+      setSelectedImage(null);
     } finally {
       setUploadingImage(false);
     }
   };
 
-
-  // Chargement des pets et appointments
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -149,17 +125,16 @@ export default function Profile() {
           return;
         }
         const [petsRes, appointmentsRes] = await Promise.all([
-          axios.get(`${API_URL}/api/pets/mine`, { // Utiliser API_URL
+          axios.get(`${API_URL}/api/pets/mine`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          axios.get(`${API_URL}/api/appointments/mine`, { // Utiliser API_URL
+          axios.get(`${API_URL}/api/appointments/mine`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
         setPets(petsRes.data);
-        setAnimalCount(petsRes.data.length);
         setAppointments(appointmentsRes.data);
-        setErrorMessage(""); // Clear previous errors
+        setErrorMessage("");
       } catch (err) {
         console.error("Erreur lors du chargement des données dynamiques:", err);
         setErrorMessage(
@@ -171,7 +146,7 @@ export default function Profile() {
     if (user?.role === "pet-owner") {
       fetchData();
     }
-  }, [user, API_URL]); // Ajout de API_URL aux dépendances
+  }, [user, API_URL]);
 
   const handleSave = async () => {
     setErrorMessage("");
@@ -182,7 +157,7 @@ export default function Profile() {
         setErrorMessage("Vous devez être connecté pour modifier le profil.");
         return;
       }
-      const res = await axios.put(`${API_URL}/api/users/profile`, editedUser, { // Utiliser API_URL
+      const res = await axios.put(`${API_URL}/api/users/profile`, editedUser, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -203,36 +178,37 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100 text-xl text-gray-700">
-        Chargement du profil...
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-teal-50 to-white">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-teal-600"></div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100 text-xl text-red-600">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-teal-50 to-white text-xl text-red-600">
         Erreur: Impossible de charger le profil. Veuillez vous connecter.
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-white">
       {(user.role === "admin" || user.role === "vet") && <Sidebar brand="PetCare" />}
-      {user.role === "pet-owner" && <Navbar className="mt-8" />}
+      {user.role === "pet-owner" && <Navbar />}
 
       <div
-        className={`max-w-5xl mx-auto py-10 ${
+        className={`max-w-6xl mx-auto py-10 ${
           user.role === "admin" || user.role === "vet"
             ? "pl-[150px] pr-6"
             : "px-6"
         }`}
       >
-        <div className="bg-white rounded-2xl shadow-xl p-10 ring-1 ring-gray-100">
-          <div className="flex flex-col md:flex-row items-center md:items-start md:space-x-10 space-y-6 md:space-y-0">
+        {/* Carte de profil principale */}
+        <div className="bg-white rounded-3xl shadow-2xl p-8 ring-1 ring-white/10 backdrop-blur-sm">
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
+            {/* Section photo de profil */}
             <div className="relative flex-shrink-0">
-              {/* Input file caché */}
               <input
                 type="file"
                 ref={fileInputRef}
@@ -240,181 +216,233 @@ export default function Profile() {
                 accept="image/*"
                 className="hidden"
               />
-              {/* Image de profil */}
-              <img
-                src={imagePreview || "/default-avatar.png"} // Utilise la prévisualisation ou l'avatar par défaut
-                alt="Profile"
-                className="h-40 w-40 rounded-full object-cover border-6 border-white shadow-lg hover:scale-105 transition-transform duration-300"
-              />
-              {/* Bouton/Icône de caméra pour déclencher l'upload */}
-              <button
-                onClick={triggerFileInput}
-                className="absolute bottom-0 right-0 bg-teal-600 text-white p-2 rounded-full shadow-lg hover:bg-teal-700 transition duration-300 flex items-center justify-center"
-                title="Changer la photo de profil"
-                disabled={uploadingImage} // Désactiver pendant l'upload
-              >
-                {uploadingImage ? (
-                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                ) : (
-                  <Camera className="h-5 w-5" />
-                )}
-              </button>
+              <div className="relative group">
+                <img
+                  src={imagePreview || "/default-avatar.png"}
+                  alt="Profile"
+                  className="h-48 w-48 rounded-full object-cover border-4 border-white shadow-xl transition-all duration-300 group-hover:opacity-90"
+                />
+                <button
+                  onClick={triggerFileInput}
+                  className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 rounded-full transition-opacity duration-300"
+                  disabled={uploadingImage}
+                >
+                  {uploadingImage ? (
+                    <svg className="animate-spin h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <Camera className="h-8 w-8 text-white" />
+                  )}
+                </button>
+              </div>
             </div>
-            <div className="text-center md:text-left flex-grow">
-              <h2 className="text-5xl font-extrabold text-gray-900 leading-tight">
-                {user.username || "Nom d'utilisateur"}
-              </h2>
-              <p className="text-gray-600 text-xl mt-2">
-                {user.email || "Email non défini"}
-              </p>
+
+            {/* Section informations */}
+            <div className="text-center md:text-left flex-grow space-y-4">
+              <div>
+                <span className="inline-block px-3 py-1 text-xs font-semibold bg-teal-100 text-teal-800 rounded-full mb-2">
+                  {user.role === 'pet-owner' ? 'Propriétaire' : 
+                   user.role === 'vet' ? 'Vétérinaire' : 'Administrateur'}
+                </span>
+                <h1 className="text-4xl font-bold text-gray-900">
+                  {user.username || "Nom d'utilisateur"}
+                </h1>
+                <p className="text-lg text-gray-600 mt-2">
+                  {user.email || "Email non défini"}
+                </p>
+              </div>
 
               {user.role === "pet-owner" && (
-                <div className="mt-6 flex justify-center md:justify-start space-x-8 text-md text-gray-700 divide-x divide-gray-200">
-                  <div className="pr-4">
-                    <span className="font-bold text-xl text-teal-700 block">{animalCount}</span>
-                    <span className="text-sm text-gray-500 block">Animaux</span>
+                <div className="flex justify-center md:justify-start gap-6">
+                  <div className="flex items-center gap-2 bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                    <PawPrint className="h-5 w-5 text-teal-600" />
+                    <div>
+                      <div className="font-bold text-xl text-gray-800">{pets.length}</div>
+                      <div className="text-xs text-gray-500">Animaux</div>
+                    </div>
                   </div>
-                  <div className="pl-4">
-                    <span className="font-bold text-xl text-teal-700 block">{appointments.length}</span>
-                    <span className="text-sm text-gray-500 block">Rendez-vous</span>
+                  <div className="flex items-center gap-2 bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                    <CalendarDays className="h-5 w-5 text-teal-600" />
+                    <div>
+                      <div className="font-bold text-xl text-gray-800">{appointments.length}</div>
+                      <div className="text-xs text-gray-500">Rendez-vous</div>
+                    </div>
                   </div>
                 </div>
               )}
 
               <button
                 onClick={() => setIsEditing(true)}
-                className="mt-8 text-teal-600 flex items-center justify-center md:justify-start hover:text-teal-800 hover:underline transition duration-200 font-medium"
+                className="inline-flex items-center px-4 py-2 bg-white border border-teal-600 text-teal-600 rounded-lg hover:bg-teal-50 transition-colors duration-200"
               >
-                <Edit className="h-5 w-5 mr-2" />
-                <span>Modifier le profil</span>
+                <Edit className="h-4 w-4 mr-2" />
+                Modifier le profil
               </button>
             </div>
           </div>
 
+          {/* Messages d'état */}
           {successMessage && (
-            <div className="mt-6 text-green-600 text-center font-medium">
+            <div className="mt-6 p-3 bg-green-50 text-green-700 rounded-lg flex items-center justify-center">
+              <CheckCircle className="h-5 w-5 mr-2" />
               {successMessage}
             </div>
           )}
 
           {errorMessage && (
-            <div className="mt-6 text-red-600 text-center font-medium">
+            <div className="mt-6 p-3 bg-red-50 text-red-700 rounded-lg flex items-center justify-center">
+              <XCircle className="h-5 w-5 mr-2" />
               {errorMessage}
             </div>
           )}
 
-          {user.role === "pet-owner" && (
-            <>
-              <div className="mt-12">
-                <h3 className="text-2xl font-bold text-gray-800 mb-6 border-b-2 pb-2 border-teal-200">
-                  Informations
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div>
-                    <label className="block text-gray-600 text-sm font-medium mb-1">
-                      Nom d'utilisateur
-                    </label>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        name="username"
-                        value={editedUser?.username || ""}
-                        onChange={handleChange}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm"
-                      />
-                    ) : (
-                      <p className="text-gray-800 text-lg font-medium">{user.username}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-gray-600 text-sm font-medium mb-1">
-                      Email
-                    </label>
-                    {isEditing ? (
-                      <input
-                        type="email"
-                        name="email"
-                        value={editedUser?.email || ""}
-                        onChange={handleChange}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm"
-                      />
-                    ) : (
-                      <p className="text-gray-800 text-lg font-medium">{user.email}</p>
-                    )}
-                  </div>
+          {/* Section édition */}
+          {isEditing && (
+            <div className="mt-8 pt-8 border-t border-gray-100">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4">Modifier les informations</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nom d'utilisateur</label>
+                  <input
+                    type="text"
+                    name="username"
+                    value={editedUser?.username || ""}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 shadow-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={editedUser?.email || ""}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 shadow-sm"
+                  />
                 </div>
               </div>
-
-              <div className="mt-12">
-                <h3 className="text-2xl font-bold text-gray-800 mb-6 border-b-2 pb-2 border-teal-200">
-                  Mes Animaux
-                </h3>
-                <div className="space-y-4">
-                  {pets.length > 0 ? (
-                    pets.map((animal) => (
-                      <div
-                        key={animal._id}
-                        className="flex justify-between items-center p-4 bg-teal-50 rounded-lg shadow-md hover:bg-teal-100 transition duration-200"
-                      >
-                        <span className="text-lg font-medium text-gray-800">
-                          {animal.name} ({animal.species})
-                        </span>
-                        <button className="text-teal-600 hover:text-teal-800 font-medium transition">Voir</button>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-500 text-lg">Aucun animal enregistré.</p>
-                  )}
-                </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="px-6 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className={`px-6 py-2 rounded-xl font-medium transition-colors ${
+                    saving ? "bg-gray-400" : "bg-teal-600 hover:bg-teal-700 text-white"
+                  }`}
+                >
+                  {saving ? "Enregistrement..." : "Enregistrer"}
+                </button>
               </div>
-
-              <div className="mt-12">
-                <h3 className="text-2xl font-bold text-gray-800 mb-6 border-b-2 pb-2 border-teal-200">
-                  Rendez-vous
-                </h3>
-                <div className="space-y-4">
-                  {appointments.length > 0 ? (
-                    appointments.map((appointment) => (
-                      <div
-                        key={appointment._id}
-                        className="flex justify-between items-center p-4 bg-teal-50 rounded-lg shadow-md hover:bg-teal-100 transition duration-200"
-                      >
-                        <span className="text-lg font-medium text-gray-800">
-                          {new Date(appointment.date).toLocaleDateString()} - {appointment.reason || "Sans détails"}
-                        </span>
-                        <button className="text-teal-600 hover:text-teal-800 font-medium transition">Voir</button>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-500 text-lg">Aucun rendez-vous prévu.</p>
-                  )}
-                </div>
-              </div>
-            </>
+            </div>
           )}
 
-          {isEditing && (
-            <div className="flex justify-end space-x-4 pt-8 border-t border-gray-200 mt-12">
-              <button
-                onClick={() => setIsEditing(false)}
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-100 font-medium transition duration-200"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className={`px-6 py-2 rounded-lg font-medium transition duration-200 ${
-                  saving
-                    ? "bg-gray-400 text-white"
-                    : "bg-teal-600 text-white hover:bg-teal-700"
-                }`}
-              >
-                {saving ? "Sauvegarde..." : "Sauvegarder"}
-              </button>
+          {/* Sections supplémentaires pour propriétaires */}
+          {user.role === "pet-owner" && (
+            <div className="mt-12 space-y-12">
+              {/* Section Animaux */}
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <PawPrint className="h-6 w-6 text-teal-600" />
+                    Mes Animaux
+                  </h3>
+                  <button className="text-sm text-teal-600 hover:text-teal-800 font-medium">
+                    Voir tous
+                  </button>
+                </div>
+                {pets.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {pets.slice(0, 3).map((animal) => (
+                      <div
+                        key={animal._id}
+                        className="bg-white p-4 rounded-xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="bg-teal-100 p-2 rounded-lg">
+                            <PawPrint className="h-5 w-5 text-teal-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-gray-800">{animal.name}</h4>
+                            <p className="text-sm text-gray-500">{animal.species}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {pets.length > 3 && (
+                      <div className="bg-gray-50 p-4 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center">
+                        <span className="text-gray-500">+{pets.length - 3} autres</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 p-8 rounded-xl text-center">
+                    <PawPrint className="h-10 w-10 mx-auto text-gray-400" />
+                    <p className="text-gray-500 mt-2">Aucun animal enregistré</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Section Rendez-vous */}
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <CalendarDays className="h-6 w-6 text-teal-600" />
+                    Mes Rendez-vous
+                  </h3>
+                  <button className="text-sm text-teal-600 hover:text-teal-800 font-medium">
+                    Voir tous
+                  </button>
+                </div>
+                {appointments.length > 0 ? (
+                  <div className="space-y-3">
+                    {appointments.slice(0, 3).map((appointment) => (
+                      <div
+                        key={appointment._id}
+                        className="bg-white p-4 rounded-xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="bg-blue-100 p-2 rounded-lg">
+                            <CalendarDays className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <div className="flex-grow">
+                            <h4 className="font-semibold text-gray-800">
+                              {new Date(appointment.date).toLocaleDateString('fr-FR', {
+                                weekday: 'short',
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </h4>
+                            <p className="text-sm text-gray-500">{appointment.reason || "Sans détails"}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {appointments.length > 3 && (
+                      <div className="text-center mt-4">
+                        <button className="text-teal-600 hover:text-teal-800 text-sm font-medium">
+                          + Voir {appointments.length - 3} autres rendez-vous
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 p-8 rounded-xl text-center">
+                    <CalendarDays className="h-10 w-10 mx-auto text-gray-400" />
+                    <p className="text-gray-500 mt-2">Aucun rendez-vous prévu</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

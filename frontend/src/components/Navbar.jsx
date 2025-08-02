@@ -1,4 +1,4 @@
-import { CalendarCheck, Home, LogOut, Menu, MessageSquare, PawPrint, Settings, User, X } from "lucide-react";
+import { CalendarCheck, Home, LogOut, Menu, MessageSquare, Bell,PawPrint, Settings, User, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import Logo from "../assets/LogoNgeza.png";
@@ -11,6 +11,7 @@ const menuItems = [
   { label: "Rendez-vous", icon: CalendarCheck, path: "/appointments" },
   { label: "Messages", icon: MessageSquare, path: "/messages" },
   { label: "Profil", icon: User, path: "/profile" },
+  { label: "Notifications", icon: Bell, path: "/notifications" },
   { label: "Paramètres", icon: Settings, path: "/settings" },
 ];
 

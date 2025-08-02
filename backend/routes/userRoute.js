@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { authMiddleware, checkRole } = require("../middleware/authMiddleware");
-const { getAllClients, countClients, getAllVets , updateProfilePicture} = require("../controllers/userController");
+const { getAllClients, countClients, getAllVets , updateProfilePicture, deleteUser} = require("../controllers/userController");
 const User = require("../models/userModel");
 const upload = require("../middleware/upload"); // Assurez-vous d'importer votre middleware d'upload
 
@@ -50,5 +50,11 @@ router.get('/chat-eligible', authMiddleware, checkRole(['pet-owner', 'vet', 'adm
     res.status(500).json({ message: "Erreur serveur lors de la récupération des utilisateurs éligibles." });
   }
 });
+
+// ✅ NOUVELLE ROUTE : Suppression d'un utilisateur par son ID
+// @route   DELETE /api/users/:id
+// @desc    Supprimer un utilisateur par ID
+// @access  Private (Admin uniquement)
+router.delete('/:id', authMiddleware, checkRole(['admin']), deleteUser);
 
 module.exports = router;

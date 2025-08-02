@@ -3,7 +3,19 @@ import axios from "axios";
 import useAuth from "../hooks/useAuth";
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { CalendarX, Clock, CheckCircle, Plus, Edit, XCircle } from 'lucide-react'; // Added Plus, Edit, XCircle icons
+import {
+  CalendarX,
+  Clock,
+  CheckCircle,
+  Plus,
+  Edit,
+  XCircle,
+  Loader2,
+  ArrowLeft,
+  Info,
+  User,
+  PawPrint
+} from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -12,19 +24,16 @@ const UserAppointmentsList = ({ onAddAppointmentClick, onEditAppointmentClick })
   const [appointments, setAppointments] = useState([]);
   const [error, setError] = useState(null);
   const [isLoadingAppointments, setIsLoadingAppointments] = useState(true);
+  const [statusMessage, setStatusMessage] = useState({ type: null, message: null });
   const [deletingAppointmentId, setDeletingAppointmentId] = useState(null);
-  const [deleteError, setDeleteError] = useState(null);
-  const [deleteSuccessMessage, setDeleteSuccessMessage] = useState(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  // Utility to clear messages after a timeout
-  const clearMessages = (setter) => {
-    setTimeout(() => setter(null), 5000); // Clear after 5 seconds
-  };
+  const clearStatusMessage = useCallback(() => {
+    setTimeout(() => setStatusMessage({ type: null, message: null }), 5000);
+  }, []);
 
   const fetchAppointments = useCallback(async () => {
-    if (authLoading) return;
-
-    if (!user || (!user.id && !user._id)) {
+    if (authLoading || !user || (!user.id && !user._id)) {
       setError("Veuillez vous connecter pour voir vos rendez-vous.");
       setIsLoadingAppointments(false);
       return;
@@ -35,141 +44,137 @@ const UserAppointmentsList = ({ onAddAppointmentClick, onEditAppointmentClick })
 
     try {
       const token = localStorage.getItem("token");
-      let res;
+      if (!token) throw new Error("Authentification requise.");
 
+      let res;
       if (user.role === 'pet-owner') {
         res = await axios.get(`${API_URL}/appointments/mine`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-      } else if (user.role === 'vet' || user.role === 'admin') {
-        setError("Cette section est dédiée aux rendez-vous des propriétaires d'animaux. Les vétérinaires et administrateurs gèrent les rendez-vous via le calendrier général.");
-        setIsLoadingAppointments(false);
-        return;
       } else {
-        setError("Rôle utilisateur non pris en charge pour l'affichage des rendez-vous.");
+        setError("Cette section est dédiée aux propriétaires d'animaux.");
         setIsLoadingAppointments(false);
         return;
       }
 
       const activeAppointments = res.data.filter(app => app.status !== 'annulé');
-      const sortedAppointments = activeAppointments.sort((a, b) => new Date(b.date) - new Date(a.date));
+      const sortedAppointments = activeAppointments.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       setAppointments(sortedAppointments);
 
     } catch (err) {
-      console.error("Erreur lors du chargement des rendez-vous:", err.response?.data || err.message);
-      setError(`Échec du chargement des rendez-vous: ${err.response?.data?.message || err.message}`);
-      clearMessages(setError);
+      console.error("Erreur lors du chargement:", err.response?.data || err.message);
+      setError(`Échec du chargement: ${err.response?.data?.message || err.message}`);
+      clearStatusMessage();
     } finally {
       setIsLoadingAppointments(false);
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, clearStatusMessage]);
 
   useEffect(() => {
-    fetchAppointments();
-  }, [fetchAppointments]);
+    if (user) fetchAppointments();
+  }, [fetchAppointments, user]);
 
   const handleEdit = (appointmentId) => {
-    if (onEditAppointmentClick) {
-      onEditAppointmentClick(appointmentId);
-    } else {
-      console.warn("onEditAppointmentClick prop not provided to UserAppointmentsList.");
-    }
+    onEditAppointmentClick?.(appointmentId);
   };
 
-  const handleDelete = async (appointmentId) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir annuler ce rendez-vous ? Cette action est irréversible.")) {
-      return;
-    }
-
+  const handleDeleteClick = (appointmentId) => {
     setDeletingAppointmentId(appointmentId);
-    setDeleteError(null);
-    setDeleteSuccessMessage(null);
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    setShowConfirmModal(false);
+    setStatusMessage({ type: 'loading', message: "Annulation en cours..." });
 
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`${API_URL}/appointments/${appointmentId}`, {
+      await axios.put(`${API_URL}/appointments/${deletingAppointmentId}/cancel`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      setAppointments(prevApps => prevApps.filter(app => app._id !== appointmentId));
-
-      setDeleteSuccessMessage("Rendez-vous annulé avec succès !");
-      clearMessages(setDeleteSuccessMessage);
-
+      setAppointments(prevApps => prevApps.filter(app => app._id !== deletingAppointmentId));
+      setStatusMessage({ type: 'success', message: "Rendez-vous annulé avec succès !" });
+      clearStatusMessage();
+      
     } catch (err) {
-      console.error("Erreur lors de l'annulation du rendez-vous :", err.response?.data || err.message);
-      const errorMessage = `Échec de l'annulation: ${err.response?.data?.message || err.message}`;
-      setDeleteError(errorMessage);
-      clearMessages(setDeleteError);
-      fetchAppointments();
+      console.error("Erreur lors de l'annulation:", err.response?.data || err.message);
+      setStatusMessage({ type: 'error', message: `Échec: ${err.response?.data?.message || err.message}` });
+      clearStatusMessage();
     } finally {
       setDeletingAppointmentId(null);
     }
   };
 
-  // Spinner Component
-  const Spinner = () => (
-    <div className="flex justify-center items-center">
-      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-teal-600"></div>
+  const handleCancelDelete = () => {
+    setShowConfirmModal(false);
+    setDeletingAppointmentId(null);
+  };
+
+  const Spinner = ({ className = "h-5 w-5" }) => (
+    <div className={`flex justify-center items-center ${className}`}>
+      <Loader2 className="animate-spin text-teal-600" />
     </div>
   );
 
-  // Global Loading State
   if (authLoading || isLoadingAppointments) {
     return (
-      <div className="text-center py-12 text-gray-700 max-w-lg mx-auto my-8">
-        <Spinner />
-        <p className="mt-4 text-lg">Chargement des rendez-vous...</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-gray-700 max-w-lg mx-auto my-8">
+        <Spinner className="h-12 w-12" />
+        <p className="mt-4 text-lg font-medium">Chargement des rendez-vous...</p>
       </div>
     );
   }
 
-  // Global Error State
   if (error) {
     return (
-      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 mx-auto mt-8 max-w-lg animate-fade-in-down" role="alert">
-        <strong className="font-bold">Erreur :</strong>
-        <span className="block sm:inline"> {error}</span>
+      <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-md mx-auto my-8 max-w-2xl animate-fade-in-down">
+        <p className="font-bold">Erreur</p>
+        <p>{error}</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 bg-white rounded-xl mt-[-10px] max-w-6xl mx-auto my-8">
+    <div className="p-6 md:p-8 bg-white rounded-2xl max-w-7xl mx-auto my-8 font-sans shadow-sm border border-gray-100">
       <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
-        <h2 className="text-3xl font-extrabold text-teal-800">Mes Rendez-vous</h2>
-        {user && user.role === 'pet-owner' && (
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900">Mes Rendez-vous</h2>
+          <p className="text-gray-500 mt-1">Gérez vos rendez-vous vétérinaires</p>
+        </div>
+        
+        {user?.role === 'pet-owner' && (
           <button
             onClick={onAddAppointmentClick}
-            className="px-8 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-opacity-75 flex items-center justify-center gap-2"
+            className="px-6 py-3 bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-700 hover:to-teal-600 text-white font-medium rounded-full shadow-lg transition-all duration-300 hover:shadow-xl flex items-center gap-2"
           >
-            <Plus className="w-5 h-5" /> Ajouter un rendez-vous
+            <Plus className="w-5 h-5" /> 
+            <span>Nouveau rendez-vous</span>
           </button>
         )}
       </div>
 
-      {/* Success and Error Messages */}
-      {deleteSuccessMessage && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4 animate-fade-in-down" role="alert">
-          <strong className="font-bold">Succès :</strong>
-          <span className="block sm:inline"> {deleteSuccessMessage}</span>
+      {/* Status Messages */}
+      {statusMessage.message && (
+        <div
+          className={`px-4 py-3 rounded-lg mb-6 text-white font-medium shadow-md transition-all duration-300
+            ${statusMessage.type === 'success' ? 'bg-green-500' :
+              statusMessage.type === 'error' ? 'bg-red-500' :
+              'bg-teal-500'} flex items-center justify-center gap-2`}
+        >
+          {statusMessage.type === 'loading' && <Loader2 className="w-5 h-5 animate-spin" />}
+          {statusMessage.message}
         </div>
       )}
 
-      {deleteError && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 animate-fade-in-down" role="alert">
-          <strong className="font-bold">Erreur d'annulation :</strong>
-          <span className="block sm:inline"> {deleteError}</span>
-        </div>
-      )}
-
-      {/* Empty State */}
       {appointments.length === 0 ? (
-        <div className="text-center text-gray-600 py-12 bg-gray-50 rounded-lg border border-dashed border-gray-300 flex flex-col items-center justify-center">
+        <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center">
           <CalendarX className="w-16 h-16 text-gray-400 mb-4" />
-          <p className="text-lg mb-4 font-medium">Aucun rendez-vous trouvé pour le moment.</p>
-          {user && user.role === 'pet-owner' && (
-             <p className="text-md">Cliquez sur le bouton "<span className="font-semibold text-teal-700">Ajouter un rendez-vous</span>" ci-dessus pour en prendre un.</p>
+          <h3 className="text-xl font-semibold text-gray-700 mb-2">Aucun rendez-vous</h3>
+          {user?.role === 'pet-owner' && (
+            <p className="text-gray-500 max-w-md">
+              Vous n'avez pas encore de rendez-vous. Cliquez sur "Nouveau rendez-vous" pour en programmer un.
+            </p>
           )}
         </div>
       ) : (
@@ -177,69 +182,123 @@ const UserAppointmentsList = ({ onAddAppointmentClick, onEditAppointmentClick })
           {appointments.map((appointment) => (
             <div
               key={appointment._id}
-              className={`bg-white p-6 rounded-lg shadow-md border border-teal-100 hover:shadow-xl transition-all duration-300 ease-in-out flex flex-col justify-between
-                ${deletingAppointmentId === appointment._id ? 'opacity-70 grayscale' : ''} `}
+              className={`bg-white p-6 rounded-xl shadow-md border border-gray-100 hover:shadow-lg transition-all duration-300 group
+                ${deletingAppointmentId === appointment._id ? 'opacity-60' : ''}`}
             >
-              <div>
-                <p className="text-xl font-bold text-teal-800 mb-3">
-                  {format(new Date(appointment.date), "EEEE d MMMM yyyy à HH:mm", { locale: fr })}
-                </p>
-                <p className="text-gray-700 mb-1">
-                  <span className="font-semibold">Motif :</span> {appointment.reason}
-                </p>
-                {user.role === 'pet-owner' && appointment.vetId && (
-                  <p className="text-gray-700 mb-1">
-                    <span className="font-semibold">Vétérinaire :</span> {appointment.vetId.username || 'Non spécifié'}
-                  </p>
-                )}
-                {appointment.petId && (
-                  <p className="text-gray-700 mb-2">
-                    <span className="font-semibold">Animal :</span> {appointment.petId.name || 'Non spécifié'} ({appointment.petId.species || 'Inconnu'})
-                  </p>
-                )}
-                <p className={`font-bold text-sm mt-3 flex items-center gap-1 ${
-                    appointment.status === 'confirmé' ? 'text-green-600' :
-                    appointment.status === 'en attente' ? 'text-yellow-600' :
-                    'text-gray-500'
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center">
+                  <div className={`p-2 rounded-lg mr-3 ${
+                    appointment.status === 'confirmé' ? 'bg-green-100 text-green-600' :
+                    appointment.status === 'terminé' ? 'bg-teal-100 text-teal-600' :
+                    'bg-yellow-100 text-yellow-600'
+                  }`}>
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-900">
+                      {format(new Date(appointment.date), "EEEE d MMMM", { locale: fr })}
+                    </p>
+                    <p className="text-gray-600">
+                      {format(new Date(appointment.date), "HH:mm", { locale: fr })}
+                    </p>
+                  </div>
+                </div>
+                <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                  appointment.status === 'confirmé' ? 'bg-green-100 text-green-800' :
+                  appointment.status === 'terminé' ? 'bg-teal-100 text-teal-800' :
+                  'bg-yellow-100 text-yellow-800'
                 }`}>
-                  Statut :
-                  {appointment.status === 'confirmé' && <CheckCircle className="w-4 h-4" />}
-                  {appointment.status === 'en attente' && <Clock className="w-4 h-4" />}
-                  <span className="ml-1">{appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}</span>
-                </p>
+                  {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                </span>
               </div>
 
-              {/* Action Buttons */}
-              {user.role === 'pet-owner' && appointment.status !== 'annulé' && (
-                <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end space-x-3">
-                  {appointment.status !== 'confirmé' && (
-                    <button
-                      onClick={() => handleEdit(appointment._id)}
-                      className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm rounded-md shadow transition duration-200 transform hover:scale-105 flex items-center justify-center gap-2"
-                      disabled={deletingAppointmentId === appointment._id}
-                    >
-                      <Edit className="w-4 h-4" /> Modifier
-                    </button>
-                  )}
+              <div className="space-y-3 mb-6">
+                <div className="flex items-start">
+                  <div className="bg-blue-100 p-2 rounded-lg mr-3">
+                    <PawPrint className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Animal</p>
+                    <p className="font-medium">
+                      {appointment.petId?.name || 'Non spécifié'} ({appointment.petId?.species || 'Inconnu'})
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start">
+                  <div className="bg-purple-100 p-2 rounded-lg mr-3">
+                    <User className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Vétérinaire</p>
+                    <p className="font-medium">
+                      {appointment.vetId?.username || 'Non spécifié'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-sm text-gray-500">Motif</p>
+                  <p className="font-medium">{appointment.reason}</p>
+                </div>
+              </div>
+
+              {user?.role === 'pet-owner' && appointment.status === 'en attente' && (
+                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-100">
                   <button
-                    onClick={() => handleDelete(appointment._id)}
-                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded-md shadow transition duration-200 transform hover:scale-105 flex items-center justify-center gap-2"
-                    disabled={deletingAppointmentId === appointment._id}
+                    onClick={() => handleEdit(appointment._id)}
+                    className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                    disabled={!!deletingAppointmentId}
+                  >
+                    <Edit className="w-4 h-4" /> Modifier
+                  </button>
+                  <button
+                    onClick={() => handleDeleteClick(appointment._id)}
+                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                    disabled={!!deletingAppointmentId}
                   >
                     {deletingAppointmentId === appointment._id ? (
-                      <>
-                        <Spinner /> Annulation...
-                      </>
+                      <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      <>
-                        <XCircle className="w-4 h-4" /> Annuler
-                      </>
+                      <XCircle className="w-4 h-4" />
                     )}
+                    Annuler
                   </button>
                 </div>
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md transform transition-all duration-300">
+            <div className="flex flex-col items-center text-center">
+              <div className="p-3 bg-red-100 rounded-full mb-4">
+                <Info className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Annuler le rendez-vous</h3>
+              <p className="text-gray-600 mb-6">
+                Êtes-vous sûr de vouloir annuler ce rendez-vous ? Cette action est irréversible.
+              </p>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={handleCancelDelete}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Non, garder
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                  Oui, annuler
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

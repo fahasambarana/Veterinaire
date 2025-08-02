@@ -1,6 +1,6 @@
 // backend/controllers/userController.js
-const User = require("../models/userModel"); // Assurez-vous que cette ligne est au début du fichier
-const Pet = require("../models/petModel"); // Si Pet n'est pas déjà importé et nécessaire ici
+const User = require("../models/userModel");
+const Pet = require("../models/petModel");
 
 exports.getAllClients = async (req, res) => {
   try {
@@ -53,7 +53,7 @@ exports.updateProfilePicture = async (req, res) => {
     // Le chemin où l'image est accessible (doit correspondre à votre configuration Multer et Express.static)
     const profilePicturePath = `/uploads/profiles/${req.file.filename}`;
 
-    // 🚨 CORRECTION ICI : Récupérer l'utilisateur AVANT de tenter de modifier ses propriétés
+    // Récupérer l'utilisateur AVANT de tenter de modifier ses propriétés
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'Utilisateur non trouvé.' });
@@ -74,5 +74,39 @@ exports.updateProfilePicture = async (req, res) => {
   } catch (error) {
     console.error('Erreur lors de la mise à jour de la photo de profil:', error);
     res.status(500).json({ message: 'Erreur serveur lors de la mise à jour de la photo de profil.' });
+  }
+};
+
+// ✅ NOUVELLE FONCTION : Supprimer un utilisateur
+exports.deleteUser = async (req, res) => {
+  try {
+    const userIdToDelete = req.params.id;
+    const adminId = req.user.id;
+    const adminRole = req.user.role;
+
+    // 1. Contrôle d'accès : Seul un admin peut supprimer un utilisateur
+    if (adminRole !== 'admin') {
+      return res.status(403).json({ message: 'Accès refusé. Seul un administrateur peut supprimer des comptes.' });
+    }
+    
+    // 2. Contrôle de sécurité : Empêcher un admin de se supprimer lui-même
+    if (userIdToDelete === adminId) {
+      return res.status(403).json({ message: 'Impossible de supprimer votre propre compte.' });
+    }
+
+    // 3. Vérifier si l'utilisateur existe
+    const userToDelete = await User.findById(userIdToDelete);
+    if (!userToDelete) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé.' });
+    }
+
+    // 4. Supprimer l'utilisateur et ses animaux de compagnie associés pour maintenir l'intégrité de la base de données
+    await User.findByIdAndDelete(userIdToDelete);
+    await Pet.deleteMany({ ownerId: userIdToDelete });
+
+    res.status(200).json({ message: 'Utilisateur et ses animaux associés supprimés avec succès.' });
+  } catch (error) {
+    console.error('Erreur lors de la suppression de l\'utilisateur:', error);
+    res.status(500).json({ message: 'Erreur serveur lors de la suppression de l\'utilisateur.', error: error.message });
   }
 };

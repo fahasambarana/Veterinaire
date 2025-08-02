@@ -84,9 +84,7 @@ const ChatPage = () => {
 
         {/* Contenu du chat, ajusté si une Navbar est présente */}
         <div className={`flex flex-col flex-1 p-4 sm:p-6 lg:p-8 ${user?.role === "pet-owner" ? 'pt-20' : ''}`}>
-          <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">
-            Messages
-          </h1>
+          
           <div className="flex flex-1 rounded-lg shadow-lg overflow-hidden bg-white">
             <div className="w-1/3 border-r border-gray-200 p-4 overflow-y-auto">
               <button
